@@ -213,8 +213,8 @@ public class UnitTest1
 
         Thread.Sleep(301);
 
-        await node2.Received().RequestVoteRPC(1, 1);
-        await node3.Received().RequestVoteRPC(1, 1);
+        await node2.Received().RequestVoteRPC(1, node.CurrentTerm);
+        await node3.Received().RequestVoteRPC(1, node.CurrentTerm);
     }
 
     // Testing 9
