@@ -1,5 +1,3 @@
-using System.Drawing.Printing;
-using System.Runtime.CompilerServices;
 using FluentAssertions;
 using NSubstitute;
 using RaftLib;
@@ -238,6 +236,24 @@ public class UnitTest1
         node.CurrentVotesForTerm[node.CurrentTerm].Should().Be(3);
 
         node.CurrentState.Should().Be(NodeState.Leader);
+    }
+
+    //END OF PART 1
+
+    // Testing 15
+    // Internal Count 11
+    [Fact]
+    public async Task GivenANodeRecievesASecondVoteForATermInTheFutureThenItShouldAlsoVoteForThatOne()
+    {
+        var moqNode = Substitute.For<INode>();
+        moqNode.Id = 2;   
+        Node node = new Node(1, [moqNode]);
+
+        await node.RequestVoteRPC(2, 1);
+        await node.RequestVoteRPC(2, 2);
+
+        await moqNode.Received().ResponseVoteRPC(true, 1);
+        await moqNode.Received().ResponseVoteRPC(true, 2);
     }
 
 
