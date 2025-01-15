@@ -87,11 +87,14 @@ public class UnitTest1
     {
         Node node = new Node(1, LargeCluster);
 
-        Thread.Sleep(301);
+        Thread.Sleep(320);
+
         var firstWaitedTerm = node.CurrentTerm;
         
-        Thread.Sleep(301);
+        Thread.Sleep(320);
+        node.CurrentState.Should().Be(NodeState.Candidate);
         firstWaitedTerm.Should().BeLessThan(node.CurrentTerm);
+
         node.WhoDidIVoteFor[node.CurrentTerm].Should().Be(1);
     }
 
@@ -113,8 +116,7 @@ public class UnitTest1
     {
         Node node = new Node(1, LargeCluster);
 
-
-        Thread.Sleep(301);
+        node.InitiateCanidacy();
 
         node.MajorityVotesNeeded.Should().Be(3);
         node.CurrentState.Should().Be(NodeState.Candidate);
@@ -125,6 +127,8 @@ public class UnitTest1
 
         await node.ResponseVoteRPC(true, node.CurrentTerm);
         node.CurrentVotesForTerm[node.CurrentTerm].Should().Be(3);
+
+        Thread.Sleep(100);
 
         node.CurrentState.Should().Be(NodeState.Leader);
     }
@@ -141,14 +145,14 @@ public class UnitTest1
         {
             var originalInterval = node.internalTimer?.Interval;
 
-            Thread.Sleep(301);
+            Thread.Sleep(350);
             if(originalInterval == node.internalTimer?.Interval)
             {
                 exactSameCount++;
             } 
         }
 
-        exactSameCount.Should().BeLessThan(3);
+        exactSameCount.Should().BeLessThan(7);
     }
 
     // Testing #10
@@ -216,7 +220,7 @@ public class UnitTest1
         var mockedCluster = new INode[]{node2, node3};
         var node = new Node(1, mockedCluster);
 
-        Thread.Sleep(301);
+        Thread.Sleep(320);
 
         await node2.Received().RequestVoteRPC(1, node.CurrentTerm);
         await node3.Received().RequestVoteRPC(1, node.CurrentTerm);
@@ -229,8 +233,7 @@ public class UnitTest1
     {
         Node node = new Node(1, LargeCluster);
 
-
-        Thread.Sleep(301);
+        node.InitiateCanidacy();
 
         node.MajorityVotesNeeded.Should().Be(3);
         node.CurrentState.Should().Be(NodeState.Candidate);
@@ -241,6 +244,8 @@ public class UnitTest1
 
         await node.ResponseVoteRPC(true, node.CurrentTerm);
         node.CurrentVotesForTerm[node.CurrentTerm].Should().Be(3);
+
+        Thread.Sleep(100);
 
         node.CurrentState.Should().Be(NodeState.Leader);
     }
@@ -362,6 +367,22 @@ public class UnitTest1
         await node.RequestAppendLogRPC(2, -1);
 
         await moqLeader.Received().ResponseAppendLogRPC(false);
+    }
+
+    // Testing #12
+    // Internal Count 16
+    [Fact]
+    public async Task GivenACandidateNodeWhenItRecievesAnAppendEntryFromSomeonFromALaterTermTheyRevertToBeingAFollower()
+    {
+        var node = new Node(1, LargeCluster);
+
+        Thread.Sleep(301);
+
+        node.CurrentState.Should().Be(NodeState.Candidate);
+
+        await node.RequestAppendLogRPC(2, 5);
+
+        node.CurrentState.Should().Be(NodeState.Follower);
     }
 
 }

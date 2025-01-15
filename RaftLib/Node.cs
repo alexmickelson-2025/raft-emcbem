@@ -4,14 +4,14 @@ namespace RaftLib;
 
 
 
-public class Node
+public class Node : INode
 {
     public NodeState CurrentState { get; set; } = NodeState.Follower;
     public int CurrentTerm { get; set; } = 0;
     public System.Timers.Timer? internalTimer { get; set; }
     public Dictionary<int, int> WhoDidIVoteFor {get; set;} = new();
     public Dictionary<int, int> CurrentVotesForTerm {get; set;} = new();
-    public int IdNum { get; set; }
+    public int Id { get; set; }
     public INode[] nodes{ get; set; } = [];
     public int MajorityVotesNeeded { get => (nodes.Count() / 2) + 1; }
     public int CurrentLeader { get; set; }
@@ -19,29 +19,28 @@ public class Node
     public Node(int idNum)
     {
         StartNewCanidacyTimer();
-        IdNum = idNum;
+        Id = idNum;
+    }
+    public Node() : this(0) {}
+    public Node(int id, INode[] nodes) : this(id) 
+    {
+        this.nodes = nodes;
     }
 
     private void StartNewCanidacyTimer()
     {
+        internalTimer?.Stop();
         internalTimer = new System.Timers.Timer(Random.Shared.Next(150, 301));
         internalTimer.Elapsed += (s, e) => {InitiateCanidacy();};
         internalTimer.AutoReset = false;
         internalTimer.Start();
     }
-
-    public Node() : this(0) {}
-
-    public Node(int id, INode[] nodes) : this(id) 
-    {
-        this.nodes = nodes;
-    }
     
-    private void InitiateCanidacy()
+    public void InitiateCanidacy()
     {
         CurrentState = NodeState.Candidate;
         CurrentTerm++;
-        WhoDidIVoteFor.Add(CurrentTerm, IdNum);
+        WhoDidIVoteFor.Add(CurrentTerm, Id);
         CurrentVotesForTerm.Add(CurrentTerm, 1);
         GatherVotes();
     }
@@ -64,7 +63,7 @@ public class Node
     {
         foreach(var node in nodes)
         {
-            node.RequestVoteRPC(IdNum, CurrentTerm);
+            node.RequestVoteRPC(Id, CurrentTerm);
         }
     }
 
@@ -92,11 +91,14 @@ public class Node
         {
             if(term > CurrentTerm)
             {
-
                 CurrentTerm = term;
                 CurrentLeader = leaderId;
+                CurrentState = NodeState.Follower;
             }
-            ResetTimer();
+            if(CurrentState != NodeState.Candidate)
+            {
+                ResetTimer();
+            }
         }
         await SendAppendResponse(leaderId, term);
     }
@@ -134,5 +136,10 @@ public class Node
         {
             await nodeToCastVoteTo.ResponseVoteRPC(result, termToVoteFor);
         }
+    }
+
+    public Task ResponseAppendLogRPC(bool ableToSync)
+    {
+        throw new NotImplementedException();
     }
 }

@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RaftTests", "RaftTests\Raft
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RaftLib", "RaftLib\RaftLib.csproj", "{0BBE33DD-3449-4FCA-B9CA-C17A2584BEE4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RaftWeb", "RaftWeb\RaftWeb.csproj", "{B9433E44-67D6-47B9-8C29-BBE2B01EAF6C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{0BBE33DD-3449-4FCA-B9CA-C17A2584BEE4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0BBE33DD-3449-4FCA-B9CA-C17A2584BEE4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0BBE33DD-3449-4FCA-B9CA-C17A2584BEE4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B9433E44-67D6-47B9-8C29-BBE2B01EAF6C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9433E44-67D6-47B9-8C29-BBE2B01EAF6C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9433E44-67D6-47B9-8C29-BBE2B01EAF6C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9433E44-67D6-47B9-8C29-BBE2B01EAF6C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
