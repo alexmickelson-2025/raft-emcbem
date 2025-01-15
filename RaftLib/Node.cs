@@ -78,10 +78,26 @@ public class Node
         await SendVote(candidateId, result, termToVoteFor);
     }
 
-    public void ResponseVoteRPC(bool result, int termToVoteFor)
+    public async Task ResponseVoteRPC(bool result, int termToVoteFor)
     {
+        await Task.CompletedTask;
         if(result == false) return;
         CurrentVotesForTerm[termToVoteFor]++;
+    }
+
+    public async Task RequestAppendLogRPC(int candidateId, int termToVoteFor)
+    {
+        ResetTimer();
+    }
+
+    private void ResetTimer()
+    {
+        if(internalTimer != null)
+        {
+            internalTimer.Stop();
+            internalTimer.Interval = (double)Random.Shared.Next(150, 301);
+            internalTimer.Start();
+        }
     }
 
     public async Task SendVote(int candidateId, bool result, int termToVoteFor)

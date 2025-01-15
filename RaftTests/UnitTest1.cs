@@ -1,4 +1,6 @@
+using System.Runtime.CompilerServices;
 using FluentAssertions;
+using Microsoft.VisualBasic;
 using NSubstitute;
 using RaftLib;
 
@@ -102,7 +104,7 @@ public class UnitTest1
 
     // Internal Count 6.b
     [Fact]
-    public void GivenACandidateHasToGet3VotesForMajorityAndTheyGet3VotesTheyBecomeLeader()
+    public async Task GivenACandidateHasToGet3VotesForMajorityAndTheyGet3VotesTheyBecomeLeader()
     {
         Node node = new Node(1, LargeCluster);
 
@@ -113,10 +115,10 @@ public class UnitTest1
         node.CurrentState.Should().Be(NodeState.Candidate);
         node.CurrentVotesForTerm[node.CurrentTerm].Should().Be(1);
 
-        node.ResponseVoteRPC(true, node.CurrentTerm);
+        await node.ResponseVoteRPC(true, node.CurrentTerm);
         node.CurrentVotesForTerm[node.CurrentTerm].Should().Be(2);
 
-        node.ResponseVoteRPC(true, node.CurrentTerm);
+        await node.ResponseVoteRPC(true, node.CurrentTerm);
         node.CurrentVotesForTerm[node.CurrentTerm].Should().Be(3);
 
         node.CurrentState.Should().Be(NodeState.Leader);
@@ -218,7 +220,7 @@ public class UnitTest1
     // Testing 9
     // Internal Count 10
     [Fact]
-    public void GivenACandidateWhenTheyRecieveOnlyAFewVotesAndSomeAreUnresponsiveItWillStillTurnToBeingALeaderIfMajority()
+    public async Task GivenACandidateWhenTheyRecieveOnlyAFewVotesAndSomeAreUnresponsiveItWillStillTurnToBeingALeaderIfMajority()
     {
         Node node = new Node(1, LargeCluster);
 
@@ -229,10 +231,10 @@ public class UnitTest1
         node.CurrentState.Should().Be(NodeState.Candidate);
         node.CurrentVotesForTerm[node.CurrentTerm].Should().Be(1);
 
-        node.ResponseVoteRPC(true, node.CurrentTerm);
+        await node.ResponseVoteRPC(true, node.CurrentTerm);
         node.CurrentVotesForTerm[node.CurrentTerm].Should().Be(2);
 
-        node.ResponseVoteRPC(true, node.CurrentTerm);
+        await node.ResponseVoteRPC(true, node.CurrentTerm);
         node.CurrentVotesForTerm[node.CurrentTerm].Should().Be(3);
 
         node.CurrentState.Should().Be(NodeState.Leader);
@@ -256,5 +258,40 @@ public class UnitTest1
         await moqNode.Received().ResponseVoteRPC(true, 2);
     }
 
+    // Testing 7
+    // Internal Count 12.a
+    [Fact]
+    public async Task GivenAFollowerNodeWhenItRecievesHeartbeatsEvery50msFor300msItDoesNotBecomeACandidate()
+    {
+        var node = new Node(1);
+    
+        for (int i = 0; i < 6; i ++)
+        {
+            Thread.Sleep(75);
+            await node.RequestAppendLogRPC(2, 1);
+        }
+        node.CurrentState.Should().Be(NodeState.Follower);
+    }
+
+    // Internal Count 12.b
+    [Fact]
+    public async Task GivenAFollowerNodeWhenItRecievesAHeartbeatEvery50msItChangesTheDurationOfItsTimer()
+    {
+        var node = new Node(1);
+
+        var exactSameCount = 0;
+        for (int i = 0; i < 10; i ++)
+        {
+            var currentInterval = node.internalTimer?.Interval;
+            Thread.Sleep(50);
+            await node.RequestAppendLogRPC(2,1);
+            if(currentInterval == node.internalTimer?.Interval)
+            {
+                exactSameCount++;
+            }
+        }
+
+        exactSameCount.Should().BeLessThan(3);
+    }
 
 }
