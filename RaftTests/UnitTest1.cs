@@ -294,4 +294,39 @@ public class UnitTest1
         exactSameCount.Should().BeLessThan(3);
     }
 
+    // Testing #2
+    // Internal Count 13.a
+    [Fact]
+    public async Task GivenAFollowerWhenTheyRecieveAHeartbeatFromANewValidLeaderTheyRememberWhoTheLeaderIs()
+    {
+        var node = new Node();
+
+        await node.RequestAppendLogRPC(2, 1);
+
+        node.CurrentLeader.Should().Be(2);
+    }
+
+    // Internal Count 13.b
+    [Fact]
+    public async Task GivenAFollowerWhenTheyRecieveHeartbeatsFromTwoDIfferentLeadersTheyStoreTheFirstLeaderAsTheCurrentAndNotTheLaterOne()
+    {
+        var node = new Node();
+
+        await node.RequestAppendLogRPC(2, 1);
+        await node.RequestAppendLogRPC(3, 1);
+
+        node.CurrentLeader.Should().Be(2);
+    }
+
+    // Internal Count 13.c
+    [Fact]
+    public async Task GivenAFollowerNodeWhenTheyRecieveAVoteRequestForATermGreaterThanTheCurrentOneTheCurrentTermChanges()
+    {
+        var node = new Node();
+
+        await node.RequestAppendLogRPC(2, 1);
+
+        node.CurrentTerm.Should().Be(1);
+    }
+
 }

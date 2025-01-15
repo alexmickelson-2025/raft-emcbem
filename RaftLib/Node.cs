@@ -14,6 +14,7 @@ public class Node
     public int IdNum { get; set; }
     public INode[] nodes{ get; set; } = [];
     public int MajorityVotesNeeded { get => (nodes.Count() / 2) + 1; }
+    public int CurrentLeader { get; set; }
     
     public Node(int idNum)
     {
@@ -87,6 +88,11 @@ public class Node
 
     public async Task RequestAppendLogRPC(int candidateId, int termToVoteFor)
     {
+        if (termToVoteFor > CurrentTerm)
+        {
+            CurrentTerm = termToVoteFor;
+            CurrentLeader = candidateId;
+        }
         ResetTimer();
     }
 
