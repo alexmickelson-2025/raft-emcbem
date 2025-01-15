@@ -107,7 +107,12 @@ public class Node
 
         if (nodeToRespondTo != null)
         {
-            await nodeToRespondTo.ResponseAppendLogRPC();
+            if(term < CurrentTerm)
+            {
+                await nodeToRespondTo.ResponseAppendLogRPC(false);
+                return;
+            }
+            await nodeToRespondTo.ResponseAppendLogRPC(true);
         }
     }
 

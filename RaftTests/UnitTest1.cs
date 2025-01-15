@@ -24,7 +24,7 @@ internal class TestNode : INode
         await Task.CompletedTask;
     }
 
-    public async Task ResponseAppendLogRPC()
+    public async Task ResponseAppendLogRPC(bool ableToSync)
     {
         await Task.CompletedTask;
     }
@@ -77,7 +77,7 @@ public class UnitTest1
 
         Thread.Sleep(301);
 
-        node.WhoDidIVoteFor[1].Should().Be(1);
+        node.WhoDidIVoteFor[node.CurrentTerm].Should().Be(1);
     }
 
     // Testing #16
@@ -346,7 +346,22 @@ public class UnitTest1
 
         await node.RequestAppendLogRPC(2, 1);
 
-        await moqLeader.Received().ResponseAppendLogRPC();
+        await moqLeader.Received().ResponseAppendLogRPC(true);
+    }
+
+    // Testing #18
+    // Internal Count 15
+    [Fact]
+    public async Task GivenAFollowerWhenTheyRecieveAAppendLogRPCFromAnOldTermTheyRejectTheResponse()
+    {
+        var moqLeader = Substitute.For<INode>();
+        moqLeader.Id = 2;
+
+        var node = new Node(1, [moqLeader]);
+
+        await node.RequestAppendLogRPC(2, -1);
+
+        await moqLeader.Received().ResponseAppendLogRPC(false);
     }
 
 }
