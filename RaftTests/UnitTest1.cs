@@ -23,6 +23,11 @@ internal class TestNode : INode
     {
         await Task.CompletedTask;
     }
+
+    public async Task ResponseAppendLogRPC()
+    {
+        await Task.CompletedTask;
+    }
 }
 
 public class UnitTest1
@@ -151,15 +156,15 @@ public class UnitTest1
     [Fact]
     public async Task GivenAFollowerIsRequestedForAVoteThenTheyWillRespondWIthAYesSinceTheyHaventVotedForThisTermYet()
     {
-        var node2 = Substitute.For<INode>();
-        node2.Id = 2;
-        var mockedCluster = new INode[]{node2};
+        var leader = Substitute.For<INode>();
+        leader.Id = 2;
+        var mockedCluster = new INode[]{leader};
 
         var node = new Node(1, mockedCluster);
 
         await node.RequestVoteRPC(2, 1);
 
-        await node2.Received().ResponseVoteRPC(true, 1);
+        await leader.Received().ResponseVoteRPC(true, 1);
     }
 
     // Internal Count 8.b
@@ -267,7 +272,7 @@ public class UnitTest1
     
         for (int i = 0; i < 6; i ++)
         {
-            Thread.Sleep(75);
+            Thread.Sleep(50);
             await node.RequestAppendLogRPC(2, 1);
         }
         node.CurrentState.Should().Be(NodeState.Follower);
@@ -327,6 +332,21 @@ public class UnitTest1
         await node.RequestAppendLogRPC(2, 1);
 
         node.CurrentTerm.Should().Be(1);
+    }
+
+    // Testing #17
+    // Internal Count 14
+    [Fact]
+    public async Task GivenAFollowerRecievesAnAppendLogRPCTheyRespondToTheServer()
+    {
+        var moqLeader = Substitute.For<INode>();
+        moqLeader.Id = 2;
+
+        var node = new Node(1, [moqLeader]);
+
+        await node.RequestAppendLogRPC(2, 1);
+
+        await moqLeader.Received().ResponseAppendLogRPC();
     }
 
 }

@@ -86,14 +86,29 @@ public class Node
         CurrentVotesForTerm[termToVoteFor]++;
     }
 
-    public async Task RequestAppendLogRPC(int candidateId, int termToVoteFor)
+    public async Task RequestAppendLogRPC(int leaderId, int term)
     {
-        if (termToVoteFor > CurrentTerm)
+        if (term >= CurrentTerm)
         {
-            CurrentTerm = termToVoteFor;
-            CurrentLeader = candidateId;
+            if(term > CurrentTerm)
+            {
+
+                CurrentTerm = term;
+                CurrentLeader = leaderId;
+            }
+            ResetTimer();
         }
-        ResetTimer();
+        await SendAppendResponse(leaderId, term);
+    }
+
+    private async Task SendAppendResponse(int leaderId, int term)
+    {
+        var nodeToRespondTo = nodes.Where(x => x.Id == leaderId).FirstOrDefault();
+
+        if (nodeToRespondTo != null)
+        {
+            await nodeToRespondTo.ResponseAppendLogRPC();
+        }
     }
 
     private void ResetTimer()

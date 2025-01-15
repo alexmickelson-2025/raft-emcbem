@@ -16,6 +16,6 @@ Test Scenarios Done:
 14. [X] If a node receives a second request for vote for the same term, it should respond no. (again, separate RPC for response)
 15. [X] If a node receives a second request for vote for a future term, it should vote for that node.
 16. [X] Given a candidate, when an election timer expires inside of an election, a new election is started.
-17. [ ] When a follower node receives an AppendEntries request, it sends a response.
+17. [X] When a follower node receives an AppendEntries request, it sends a response.
 18. [ ] Given a candidate receives an AppendEntries from a previous term, then rejects.
 19. [ ] When a candidate wins an election, it immediately sends a heart beat.
