@@ -61,6 +61,15 @@ public class Node : INode
         internalTimer?.Stop();
         CurrentState = NodeState.Leader;
         SendHeartbeats();
+        StartHeartbeatTimer();
+    }
+
+    private void StartHeartbeatTimer()
+    {
+        internalTimer = new System.Timers.Timer(50);
+        internalTimer.Elapsed += (s, e) => {SendHeartbeats();};
+        internalTimer.AutoReset = true;
+        internalTimer.Start();
     }
 
     private void SendHeartbeats()

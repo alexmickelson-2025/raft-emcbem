@@ -1,6 +1,6 @@
 Test Scenarios Done:
 
-1. [ ] When a leader is active it sends a heart beat within 50ms.
+1. [X] When a leader is active it sends a heart beat within 50ms.
 2. [X] When a node receives an AppendEntries from another node, then first node remembers that other node is the current leader.
 3. [X] When a new node is initialized, it should be in follower state.
 4. [X] When a follower doesn't get a message for 300ms then it starts an election.

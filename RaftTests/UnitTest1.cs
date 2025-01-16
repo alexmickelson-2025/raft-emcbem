@@ -1,7 +1,4 @@
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 using FluentAssertions;
-using Microsoft.VisualBasic;
 using NSubstitute;
 using RaftLib;
 
@@ -342,6 +339,7 @@ public class UnitTest1
         node.CurrentLeader.Should().Be(2);
     }
 
+
     // Internal Count 13.c
     [Fact]
     public async Task GivenAFollowerNodeWhenTheyRecieveAVoteRequestForATermGreaterThanTheCurrentOneTheCurrentTermChanges()
@@ -351,6 +349,21 @@ public class UnitTest1
         await node.RequestAppendLogRPC(2, 1);
 
         node.CurrentTerm.Should().Be(1);
+    }
+
+    // Internal Count 13.d
+    [Fact]
+    public async Task GivenAFollowerNodeWhenTheyHaveAlreadyIdentifiedTheLeaderTheyChangeTheLeaderWhenTheyRecieveARequestFromAHigherTerm()
+    {
+        var node = new Node();
+
+        await node.RequestAppendLogRPC(2, 1);
+
+        node.CurrentLeader.Should().Be(2);
+
+        await node.RequestAppendLogRPC(3, 3);
+
+        node.CurrentLeader.Should().Be(3);
     }
 
     // Testing #17
@@ -433,5 +446,17 @@ public class UnitTest1
     }
 
     // Testing #1
+    // Internal count 19
+    [Fact]
+    public void GivenALeaderNodeTheyWillSendOutHeartbeatsEvery50ms()
+    {
+        var moqNode1 = Substitute.For<INode>();
+        var leaderNode = new Node(1, [moqNode1]);
 
+        leaderNode.InitiateLeadership();
+
+        Thread.Sleep(525);
+
+        moqNode1.Received(11).RequestAppendLogRPC(1, leaderNode.CurrentTerm);
+    }
 }
