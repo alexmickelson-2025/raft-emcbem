@@ -11,11 +11,11 @@ Test Scenarios Done:
 9. [X] Given a candidate receives a majority of votes while waiting for unresponsive node, it still becomes a leader.
 10. [X] A follower that has not voted and is in an earlier term responds to a RequestForVoteRPC with yes. (the reply will be a separate RPC)
 11. [X] Given a candidate server that just became a candidate, it votes for itself.
-12. [ ] Given a candidate, when it receives an AppendEntries message from a node with a later term, then candidate loses and becomes a follower.
-13. [ ] Given a candidate, when it receives an AppendEntries message from a node with an equal term, then candidate loses and becomes a follower.
+12. [X] Given a candidate, when it receives an AppendEntries message from a node with a later term, then candidate loses and becomes a follower.
+13. [X] Given a candidate, when it receives an AppendEntries message from a node with an equal term, then candidate loses and becomes a follower.
 14. [X] If a node receives a second request for vote for the same term, it should respond no. (again, separate RPC for response)
 15. [X] If a node receives a second request for vote for a future term, it should vote for that node.
 16. [X] Given a candidate, when an election timer expires inside of an election, a new election is started.
 17. [X] When a follower node receives an AppendEntries request, it sends a response.
 18. [X] Given a candidate receives an AppendEntries from a previous term, then rejects.
-19. [ ] When a candidate wins an election, it immediately sends a heart beat.
+19. [X] When a candidate wins an election, it immediately sends a heart beat.

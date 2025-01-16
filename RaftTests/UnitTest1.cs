@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.VisualBasic;
 using NSubstitute;
@@ -28,6 +29,11 @@ internal class TestNode : INode
     {
         await Task.CompletedTask;
     }
+
+    public async Task RequestAppendLogRPC(int leaderId, int termLogIsFrom)
+    {
+        await Task.CompletedTask;
+    }
 }
 
 public class UnitTest1
@@ -51,21 +57,32 @@ public class UnitTest1
     {
         Node node = new Node(1, LargeCluster);
 
-        Thread.Sleep(301);
+        Thread.Sleep(320);
 
         node.CurrentState.Should().Be(NodeState.Candidate);
     }
 
     // Testing #6
-    // Internal Count 3
+    // Internal Count 3.a
     [Fact]
     public void GivenAFollowerBecomesANewCandidateThenTheInternalTermCounterGoesUpForEachCanidacyThatHappens()
     {
         Node node = new Node();
 
-        Thread.Sleep(302);
+        Thread.Sleep(320);
 
         node.CurrentTerm.Should().BeGreaterThan(0);
+    }
+
+    // Internal Count 3.b
+    [Fact]
+    public void GivenAFollowerWhenANodeGetsForcedToIncreaseInTermItOnlyGoesUpOnce()
+    {
+        Node node = new Node(1, LargeCluster);
+
+        node.InitiateCanidacy();
+
+        node.CurrentTerm.Should().Be(1);
     }
 
     // Testing #11
@@ -75,7 +92,7 @@ public class UnitTest1
     {
         Node node = new Node(1);
 
-        Thread.Sleep(301);
+        Thread.Sleep(320);
 
         node.WhoDidIVoteFor[node.CurrentTerm].Should().Be(1);
     }
@@ -83,7 +100,7 @@ public class UnitTest1
     // Testing #16
     // Internal Count 5
     [Fact]
-    public void GivenACanidateNodeWhenTheElectionTimerEndsAnotherElectionBegins()
+    public async Task GivenACanidateNodeWhenTheElectionTimerEndsAnotherElectionBegins()
     {
         Node node = new Node(1, LargeCluster);
 
@@ -91,7 +108,8 @@ public class UnitTest1
 
         var firstWaitedTerm = node.CurrentTerm;
         
-        Thread.Sleep(320);
+        await Task.Delay(620);
+
         node.CurrentState.Should().Be(NodeState.Candidate);
         firstWaitedTerm.Should().BeLessThan(node.CurrentTerm);
 
@@ -105,7 +123,7 @@ public class UnitTest1
     {
         Node node = new Node(1);
 
-        Thread.Sleep(301);
+        Thread.Sleep(320);
 
         node.CurrentState.Should().Be(NodeState.Leader);
     }
@@ -127,8 +145,6 @@ public class UnitTest1
 
         await node.ResponseVoteRPC(true, node.CurrentTerm);
         node.CurrentVotesForTerm[node.CurrentTerm].Should().Be(3);
-
-        Thread.Sleep(100);
 
         node.CurrentState.Should().Be(NodeState.Leader);
     }
@@ -244,8 +260,6 @@ public class UnitTest1
 
         await node.ResponseVoteRPC(true, node.CurrentTerm);
         node.CurrentVotesForTerm[node.CurrentTerm].Should().Be(3);
-
-        Thread.Sleep(100);
 
         node.CurrentState.Should().Be(NodeState.Leader);
     }
@@ -376,13 +390,48 @@ public class UnitTest1
     {
         var node = new Node(1, LargeCluster);
 
-        Thread.Sleep(301);
-
-        node.CurrentState.Should().Be(NodeState.Candidate);
+        node.InitiateCanidacy();
 
         await node.RequestAppendLogRPC(2, 5);
 
         node.CurrentState.Should().Be(NodeState.Follower);
     }
+
+    // Testing #13
+    // Internal Count 17
+    [Fact]
+    public async Task GivenACandidateNodeWhenItRecievesAnAppendEntryFromSomeoneFromTheCurrentTermTheySHouldBeAFollower()
+    {
+        var node = new Node(1, LargeCluster);
+
+        node.InitiateCanidacy();
+
+        await node.RequestAppendLogRPC(1, node.CurrentTerm);
+
+        node.CurrentState.Should().Be(NodeState.Follower);
+    }
+
+    // Testing #19
+    // Internal Count 18
+    [Fact]
+    public async Task WhenANodeBecomesALeaderTheySendOutHeartbeatsToAssertLeadership()
+    {
+        var moqNode1 = Substitute.For<INode>();
+        var moqNode2 = Substitute.For<INode>();
+        var node = new Node(1, [moqNode1, moqNode2]);
+
+        node.InitiateCanidacy();
+        node.CurrentTerm.Should().Be(1);
+
+        await node.ResponseVoteRPC(true, node.CurrentTerm);
+        await node.ResponseVoteRPC(true, node.CurrentTerm);
+
+        node.CurrentTerm.Should().Be(1);
+        node.CurrentState.Should().Be(NodeState.Leader);
+        await moqNode1.Received().RequestAppendLogRPC(1,node.CurrentTerm);
+        await moqNode2.Received().RequestAppendLogRPC(1,node.CurrentTerm);
+    }
+
+    // Testing #1
 
 }

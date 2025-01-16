@@ -24,4 +24,9 @@ public class SimulationNode : INode
     {
         return InnerNode.ResponseVoteRPC(result, termToVoteFor);
     }
+
+    public Task RequestAppendLogRPC(int leaderId, int termLogIsFrom)
+    {
+        return InnerNode.RequestAppendLogRPC(leaderId, termLogIsFrom);
+    }
 }

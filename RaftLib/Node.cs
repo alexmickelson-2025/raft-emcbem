@@ -29,7 +29,6 @@ public class Node : INode
 
     private void StartNewCanidacyTimer()
     {
-        internalTimer?.Stop();
         internalTimer = new System.Timers.Timer(Random.Shared.Next(150, 301));
         internalTimer.Elapsed += (s, e) => {InitiateCanidacy();};
         internalTimer.AutoReset = false;
@@ -38,6 +37,7 @@ public class Node : INode
     
     public void InitiateCanidacy()
     {
+        internalTimer?.Dispose();
         CurrentState = NodeState.Candidate;
         CurrentTerm++;
         WhoDidIVoteFor.Add(CurrentTerm, Id);
@@ -50,12 +50,24 @@ public class Node : INode
         var termToCountFor = CurrentTerm;
         StartNewCanidacyTimer();
         SendVotes();
-        while(CurrentState == NodeState.Candidate && termToCountFor == CurrentTerm)
+        if(MajorityVotesNeeded == 1)
         {
-            if(CurrentVotesForTerm[termToCountFor] >= MajorityVotesNeeded)
-            {
-                CurrentState = NodeState.Leader;
-            }
+            InitiateLeadership();
+        }
+    }
+
+    public void InitiateLeadership()
+    {
+        internalTimer?.Stop();
+        CurrentState = NodeState.Leader;
+        SendHeartbeats();
+    }
+
+    private void SendHeartbeats()
+    {
+        foreach(var node in nodes)
+        {
+            node.RequestAppendLogRPC(Id, CurrentTerm);
         }
     }
 
@@ -83,6 +95,13 @@ public class Node : INode
         await Task.CompletedTask;
         if(result == false) return;
         CurrentVotesForTerm[termToVoteFor]++;
+        if(CurrentState == NodeState.Candidate && termToVoteFor == CurrentTerm)
+        {
+            if(CurrentVotesForTerm[termToVoteFor] >= MajorityVotesNeeded)
+            {
+                InitiateLeadership();
+            }
+        }
     }
 
     public async Task RequestAppendLogRPC(int leaderId, int term)
@@ -95,6 +114,16 @@ public class Node : INode
                 CurrentLeader = leaderId;
                 CurrentState = NodeState.Follower;
             }
+
+            if(term == CurrentTerm && NodeState.Candidate == CurrentState)
+            {
+                internalTimer?.Stop();
+                CurrentState = NodeState.Follower;
+                CurrentLeader = leaderId;
+            }
+
+    
+
             if(CurrentState != NodeState.Candidate)
             {
                 ResetTimer();

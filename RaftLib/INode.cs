@@ -7,4 +7,5 @@ public interface INode
     public Task ResponseVoteRPC(bool result, int termToVoteFor);
     public Task RequestVoteRPC(int candidateId, int termToVoteFor);
     public Task ResponseAppendLogRPC(bool ableToSync);
+    public Task RequestAppendLogRPC(int leaderId, int termLogIsFrom);
 }
