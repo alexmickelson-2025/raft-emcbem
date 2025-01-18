@@ -4,29 +4,34 @@ public class SimulationNode : INode
 {
     public Node InnerNode { get; }
     public int Id { get => InnerNode.Id; set => InnerNode.Id = value; }
+
+    public int NetworkDelay {get; set;} = 10;
     
     public SimulationNode(Node node)
     {
         InnerNode = node;
     }
 
-    public Task RequestVoteRPC(int candidateId, int termToVoteFor)
+    public async Task RequestVoteRPC(int candidateId, int termToVoteFor)
     {
-        return InnerNode.RequestVoteRPC(candidateId, termToVoteFor);
+        await Task.Delay(NetworkDelay);
+        await InnerNode.RequestVoteRPC(candidateId, termToVoteFor);
     }
 
-    public Task ResponseAppendLogRPC(bool ableToSync)
+    public async Task ResponseAppendLogRPC(bool ableToSync)
     {
-        return InnerNode.ResponseAppendLogRPC(ableToSync);
+        await InnerNode.ResponseAppendLogRPC(ableToSync);
     }
 
-    public Task ResponseVoteRPC(bool result, int termToVoteFor)
+    public async Task ResponseVoteRPC(bool result, int termToVoteFor)
     {
-        return InnerNode.ResponseVoteRPC(result, termToVoteFor);
+        await InnerNode.ResponseVoteRPC(result, termToVoteFor);
     }
 
-    public Task RequestAppendLogRPC(int leaderId, int termLogIsFrom)
+    public async Task RequestAppendLogRPC(int leaderId, int termLogIsFrom)
     {
-        return InnerNode.RequestAppendLogRPC(leaderId, termLogIsFrom);
+        await Task.Delay(NetworkDelay);
+
+        await InnerNode.RequestAppendLogRPC(leaderId, termLogIsFrom);
     }
 }
