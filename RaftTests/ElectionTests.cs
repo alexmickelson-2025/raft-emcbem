@@ -4,7 +4,7 @@ using RaftLib;
 
 namespace RaftTests;
 
-internal class TestNode : INode
+public class TestNode : INode
 {
     public int Id { get; set;}
     public TestNode(int id)
@@ -33,7 +33,7 @@ internal class TestNode : INode
     }
 }
 
-public class UnitTest1
+public class ElectionTests
 {
     public INode[] LargeCluster { get; set; } = [new TestNode(2), new TestNode(3), new TestNode(4), new TestNode(5)];
 

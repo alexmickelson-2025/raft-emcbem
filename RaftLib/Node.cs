@@ -15,6 +15,8 @@ public class Node : INode
     public DateTime StartTime;
     public double TimerInterval = 0;
 
+    public List<Log> LogList { get; set;} = new();
+
     public int MinInterval { get; set; } = 150;
     public int MaxInterval { get; set; } = 301;
     public int HeartbeatInterval { get; set; } = 50;
@@ -195,5 +197,10 @@ public class Node : INode
         double elapsedTime = (DateTime.Now - StartTime).TotalMilliseconds;
         double remainingTime = TimerInterval - elapsedTime;
         return Math.Max(remainingTime, 0);
+    }
+
+    public void ReceiveClientRequest(string key, string value)
+    {
+        LogList.Add(new Log(CurrentTerm, key, value));
     }
 }
