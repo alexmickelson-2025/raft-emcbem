@@ -33,7 +33,7 @@ appendentries RPC to all nodes
 8. [X] when the leader has received a majority confirmation of a log, it commits it
 9. [X] the leader commits logs by incrementing its committed log index
 10. [X] given a follower receives an appendentries with log(s) it will add those entries to its personal log
-11. [ ] a followers response to an appendentries includes the followers term number and log entry index
+11. [X] a followers response to an appendentries includes the followers term number and log entry index
 12. [ ] when a leader receives a majority responses from the clients after a log replication heartbeat, the leader sends a confirmation response to the client
 13. [ ] given a leader node, when a log is committed, it applies it to its internal state machine
 14. [ ] when a follower receives a heartbeat, it increases its commitIndex to match the commit index of the heartbeat
