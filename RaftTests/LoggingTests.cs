@@ -129,6 +129,7 @@ public class LoggingTests
     
         // Then
         node.InternalStateMachine["hi"].Should().Be("there");
+        node.CommitIndex.Should().Be(1);
     }
 
     // Testing #8.b
@@ -210,5 +211,20 @@ public class LoggingTests
 
         await node.RequestAppendLogRPC(2, 0, [new Log(0, "blah", "blah")], 0);
         await moqLeader.Received().ResponseAppendLogRPC(true, 1, 0, 1);
+    }
+
+    // Testing #13
+    [Fact]
+    public void GivenALeaderNodeWhenALogIsCommittedItGetsAddedToTheStateMachine()
+    {
+        // Given
+        var node = new Node(1);
+    
+        // When
+        node.InitiateLeadership();
+        node.ReceiveClientRequest("test", "machine");
+    
+        // Then
+        node.InternalStateMachine["test"].Should().Be("machine");
     }
 }
