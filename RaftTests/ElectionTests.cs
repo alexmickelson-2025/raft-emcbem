@@ -22,13 +22,13 @@ public class TestNode : INode
         await Task.CompletedTask;
     }
 
-    public async Task ResponseAppendLogRPC(bool ableToSync)
+    public async Task ResponseAppendLogRPC(bool ableToSync, int id, int term, int index)
     {
         await Task.CompletedTask;
     }
 
 
-    public async Task RequestAppendLogRPC(int leaderId, int term, Log[] entries)
+    public async Task RequestAppendLogRPC(int leaderId, int term, Log[] entries, int lastCommited)
     {
          await Task.CompletedTask;
     }
@@ -137,7 +137,7 @@ public class ElectionTests
 
         node.InitiateCanidacy();
 
-        node.MajorityVotesNeeded.Should().Be(3);
+        node.Majority.Should().Be(3);
         node.CurrentState.Should().Be(NodeState.Candidate);
         node.CurrentVotesForTerm[node.CurrentTerm].Should().Be(1);
 
@@ -158,18 +158,20 @@ public class ElectionTests
         Node node = new Node(1, LargeCluster);
 
         var exactSameCount = 0;
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 100; i++)
         {
-            var originalInterval = node.internalTimer?.Interval;
-
-            Thread.Sleep(350);
-            if(originalInterval == node.internalTimer?.Interval)
+            var originalInterval = node.InternalTimer?.Interval;
+            originalInterval.Should().BeInRange(150, 301);
+            node.Dispose();
+            node = new Node(1, LargeCluster);
+            if(originalInterval == node.InternalTimer?.Interval)
             {
                 exactSameCount++;
             } 
+
         }
 
-        exactSameCount.Should().BeLessThan(7);
+        exactSameCount.Should().BeLessThan(33);
     }
 
     // Testing #10
@@ -252,7 +254,7 @@ public class ElectionTests
 
         node.InitiateCanidacy();
 
-        node.MajorityVotesNeeded.Should().Be(3);
+        node.Majority.Should().Be(3);
         node.CurrentState.Should().Be(NodeState.Candidate);
         node.CurrentVotesForTerm[node.CurrentTerm].Should().Be(1);
 
@@ -293,7 +295,7 @@ public class ElectionTests
         for (int i = 0; i < 6; i ++)
         {
             Thread.Sleep(50);
-            await node.RequestAppendLogRPC(2, 1, []);
+            await node.RequestAppendLogRPC(2, 1, [], 0);
         }
         node.CurrentState.Should().Be(NodeState.Follower);
     }
@@ -307,10 +309,10 @@ public class ElectionTests
         var exactSameCount = 0;
         for (int i = 0; i < 10; i ++)
         {
-            var currentInterval = node.internalTimer?.Interval;
+            var currentInterval = node.InternalTimer?.Interval;
             Thread.Sleep(50);
-            await node.RequestAppendLogRPC(2,1, []);
-            if(currentInterval == node.internalTimer?.Interval)
+            await node.RequestAppendLogRPC(2,1, [], 0);
+            if(currentInterval == node.InternalTimer?.Interval)
             {
                 exactSameCount++;
             }
@@ -326,7 +328,7 @@ public class ElectionTests
     {
         var node = new Node();
 
-        await node.RequestAppendLogRPC(2, 1, []);
+        await node.RequestAppendLogRPC(2, 1, [], 0);
 
         node.CurrentLeader.Should().Be(2);
     }
@@ -337,8 +339,8 @@ public class ElectionTests
     {
         var node = new Node();
 
-        await node.RequestAppendLogRPC(2, 1, []);
-        await node.RequestAppendLogRPC(3, 1, []);
+        await node.RequestAppendLogRPC(2, 1, [], 0);
+        await node.RequestAppendLogRPC(3, 1, [], 0);
 
         node.CurrentLeader.Should().Be(2);
     }
@@ -350,7 +352,7 @@ public class ElectionTests
     {
         var node = new Node();
 
-        await node.RequestAppendLogRPC(2, 1, []);
+        await node.RequestAppendLogRPC(2, 1, [], 0);
 
         node.CurrentTerm.Should().Be(1);
     }
@@ -361,11 +363,11 @@ public class ElectionTests
     {
         var node = new Node();
 
-        await node.RequestAppendLogRPC(2, 1, []);
+        await node.RequestAppendLogRPC(2, 1, [], 0);
 
         node.CurrentLeader.Should().Be(2);
 
-        await node.RequestAppendLogRPC(3, 3, []);
+        await node.RequestAppendLogRPC(3, 3, [], 0);
 
         node.CurrentLeader.Should().Be(3);
     }
@@ -380,9 +382,9 @@ public class ElectionTests
 
         var node = new Node(1, [moqLeader]);
 
-        await node.RequestAppendLogRPC(2, 1, []);
+        await node.RequestAppendLogRPC(2, 1, [], 0);
 
-        await moqLeader.Received().ResponseAppendLogRPC(true);
+        await moqLeader.Received().ResponseAppendLogRPC(true, 1, 1, 0);
     }
 
     // Testing #18
@@ -395,9 +397,9 @@ public class ElectionTests
 
         var node = new Node(1, [moqLeader]);
 
-        await node.RequestAppendLogRPC(2, -1, []);
+        await node.RequestAppendLogRPC(2, -1, [], 0);
 
-        await moqLeader.Received().ResponseAppendLogRPC(false);
+        await moqLeader.Received().ResponseAppendLogRPC(false, 1, 0, 0);
     }
 
     // Testing #12
@@ -409,7 +411,7 @@ public class ElectionTests
 
         node.InitiateCanidacy();
 
-        await node.RequestAppendLogRPC(2, 5, []);
+        await node.RequestAppendLogRPC(2, 5, [], 0);
 
         node.CurrentState.Should().Be(NodeState.Follower);
     }
@@ -423,7 +425,7 @@ public class ElectionTests
 
         node.InitiateCanidacy();
 
-        await node.RequestAppendLogRPC(1, node.CurrentTerm, []);
+        await node.RequestAppendLogRPC(1, node.CurrentTerm, [], 0);
 
         node.CurrentState.Should().Be(NodeState.Follower);
     }
@@ -445,8 +447,8 @@ public class ElectionTests
 
         node.CurrentTerm.Should().Be(1);
         node.CurrentState.Should().Be(NodeState.Leader);
-        await moqNode1.Received().RequestAppendLogRPC(1,node.CurrentTerm, Arg.Any<Log[]>());
-        await moqNode2.Received().RequestAppendLogRPC(1,node.CurrentTerm, Arg.Any<Log[]>());
+        await moqNode1.Received().RequestAppendLogRPC(1,node.CurrentTerm, Arg.Any<Log[]>(), 0);
+        await moqNode2.Received().RequestAppendLogRPC(1,node.CurrentTerm, Arg.Any<Log[]>(), 0);
     }
 
     // Testing #1
@@ -461,6 +463,6 @@ public class ElectionTests
 
         Thread.Sleep(525);
 
-        moqNode1.Received(11).RequestAppendLogRPC(1, leaderNode.CurrentTerm, Arg.Any<Log[]>());
+        moqNode1.Received(11).RequestAppendLogRPC(1, leaderNode.CurrentTerm, Arg.Any<Log[]>(), 0);
     }
 }

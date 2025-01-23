@@ -22,7 +22,7 @@ public class LoggingTests
        await moqNode.Received().RequestAppendLogRPC(1, 0, Arg.Is<Log[]>(logs =>
             logs.Length == 1 &&
             logs[0].Equals(new Log(0, "test1", "test2"))
-        ));
+        ), 0);
         }
 
 
@@ -75,7 +75,7 @@ public class LoggingTests
 
     // Testing #5
     [Fact]
-    public void GivenALeaderNodeWhenSendingOutHeartbeatsEachNodeGetsLogsBasedOffOfTheirNextIndex()
+    public void GivenALeaderNodeWhenSendingOutHeartbeatsEachNodeGivesLogsBasedOffOfTheirNextIndex()
     {
         var moqNode1 = Substitute.For<INode>();
         moqNode1.Id = 1;
@@ -93,10 +93,26 @@ public class LoggingTests
 
         Thread.Sleep(75);
 
-        moqNode1.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 2 && logs[0].Equals(log1) && logs[1].Equals(log2) ));
-        moqNode2.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 1 && logs[0].Equals(log2) ));
+        moqNode1.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 2 && logs[0].Equals(log1) && logs[1].Equals(log2) ), 0);
+        moqNode2.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 1 && logs[0].Equals(log2) ), 0);
     }
 
     // Testing #6 
-    
+    [Fact]
+    public async Task GivenALeaderWhenSendingOutHeartbeatsThenTheLeaderIncludesTheHighestCommittedEntry()
+    {
+        var moqNode1 = Substitute.For<INode>();
+        moqNode1.Id = 1;
+        var node = new Node(1, [moqNode1]);
+
+        //Arrange
+        node.InitiateLeadership();
+        await moqNode1.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 0);
+        node.ReceiveClientRequest("test", "log");
+        await node.ResponseAppendLogRPC(true, 1, 0, 1);
+        await Task.Delay(75);
+
+        //Assert
+        await moqNode1.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 1);
+    }
 }

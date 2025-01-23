@@ -1,6 +1,4 @@
-﻿using System.Reflection.Metadata.Ecma335;
-
-namespace RaftLib;
+﻿namespace RaftLib;
 
 
 public class Node : INode
@@ -8,20 +6,22 @@ public class Node : INode
     public NodeState CurrentState { get; set; } = NodeState.Follower;
     public Dictionary<int, int> OtherNextIndexes { get; set; } = new();
     public int CurrentTerm { get; set; } = 0;
-    public System.Timers.Timer? internalTimer { get; set; }
+    public System.Timers.Timer? InternalTimer { get; set; }
     public Dictionary<int, int> WhoDidIVoteFor { get; set; } = new();
     public Dictionary<int, int> CurrentVotesForTerm { get; set; } = new();
+    public Dictionary<int, int> LogReplicated { get; set; } = new();
     public int Id { get; set; }
     public INode[] nodes { get; set; } = [];
-    public int MajorityVotesNeeded { get => (nodes.Count() / 2) + 1; }
+    public int Majority { get => ((nodes.Count() + 1) / 2) + 1; }
     public int CurrentLeader { get; set; }
     public DateTime StartTime;
     public double TimerInterval = 0;
-    public List<Log> LogList { get; set;} = new();
+    public List<Log> LogList { get; set; } = new();
     public int NextIndex { get => LogList.Count + 1; }
     public int MinInterval { get; set; } = 150;
     public int MaxInterval { get; set; } = 301;
     public int HeartbeatInterval { get; set; } = 50;
+    public int CommitIndex { get; set; }
 
 
     public Node(int idNum)
@@ -45,20 +45,20 @@ public class Node : INode
 
     private void StartNewCanidacyTimer()
     {
-        internalTimer?.Stop();
-        internalTimer?.Dispose();
+        InternalTimer?.Stop();
+        InternalTimer?.Dispose();
         TimerInterval = Random.Shared.Next(MinInterval, MaxInterval);
         StartTime = DateTime.Now;
-        internalTimer = new System.Timers.Timer(TimerInterval);
-        internalTimer.Elapsed += (s, e) => { InitiateCanidacy(); };
-        internalTimer.AutoReset = false;
-        internalTimer.Start();
+        InternalTimer = new System.Timers.Timer(TimerInterval);
+        InternalTimer.Elapsed += (s, e) => { InitiateCanidacy(); };
+        InternalTimer.AutoReset = false;
+        InternalTimer.Start();
     }
 
     public void InitiateCanidacy()
     {
-        internalTimer?.Stop();
-        internalTimer?.Dispose();
+        InternalTimer?.Stop();
+        InternalTimer?.Dispose();
         CurrentState = NodeState.Candidate;
         CurrentTerm++;
         WhoDidIVoteFor.Add(CurrentTerm, Id);
@@ -70,7 +70,7 @@ public class Node : INode
     {
         StartNewCanidacyTimer();
         SendVotes();
-        if (MajorityVotesNeeded == 1)
+        if (Majority == 1)
         {
             InitiateLeadership();
         }
@@ -78,8 +78,8 @@ public class Node : INode
 
     public void InitiateLeadership()
     {
-        internalTimer?.Stop();
-        internalTimer?.Dispose();
+        InternalTimer?.Stop();
+        InternalTimer?.Dispose();
 
         CurrentState = NodeState.Leader;
         CurrentLeader = Id;
@@ -91,7 +91,7 @@ public class Node : INode
 
     private void SetupOtherNodesIndexes()
     {
-        foreach(var node in nodes)
+        foreach (var node in nodes)
         {
             OtherNextIndexes[node.Id] = NextIndex;
         }
@@ -100,21 +100,21 @@ public class Node : INode
     private void StartHeartbeatTimer()
     {
         SendHeartbeats();
-        internalTimer?.Stop();
-        internalTimer?.Dispose();
+        InternalTimer?.Stop();
+        InternalTimer?.Dispose();
         TimerInterval = HeartbeatInterval;
         StartTime = DateTime.Now;
-        internalTimer = new System.Timers.Timer(HeartbeatInterval);
-        internalTimer.Elapsed += (s, e) => { StartHeartbeatTimer(); };
-        internalTimer.AutoReset = false;
-        internalTimer.Start();
+        InternalTimer = new System.Timers.Timer(HeartbeatInterval);
+        InternalTimer.Elapsed += (s, e) => { StartHeartbeatTimer(); };
+        InternalTimer.AutoReset = false;
+        InternalTimer.Start();
     }
 
     private void SendHeartbeats()
     {
         foreach (var node in nodes)
         {
-            node.RequestAppendLogRPC(Id, CurrentTerm, GetOtherNodesLogList(node.Id));
+            node.RequestAppendLogRPC(Id, CurrentTerm, GetOtherNodesLogList(node.Id), CommitIndex);
         }
     }
 
@@ -157,7 +157,7 @@ public class Node : INode
         CurrentVotesForTerm[termToVoteFor]++;
         if (CurrentState == NodeState.Candidate && termToVoteFor == CurrentTerm)
         {
-            if (CurrentVotesForTerm[termToVoteFor] >= MajorityVotesNeeded)
+            if (CurrentVotesForTerm[termToVoteFor] >= Majority)
             {
                 InitiateLeadership();
             }
@@ -172,10 +172,10 @@ public class Node : INode
         {
             if (term < CurrentTerm)
             {
-                await nodeToRespondTo.ResponseAppendLogRPC(false);
+                await nodeToRespondTo.ResponseAppendLogRPC(false, Id, CurrentTerm, 0);
                 return;
             }
-            await nodeToRespondTo.ResponseAppendLogRPC(true);
+            await nodeToRespondTo.ResponseAppendLogRPC(true, Id, CurrentTerm, 0);
         }
     }
 
@@ -189,11 +189,37 @@ public class Node : INode
         }
     }
 
-    public async Task ResponseAppendLogRPC(bool ableToSync)
+    public async Task ResponseAppendLogRPC(bool ableToSync, int id, int term, int index)
     {
+        if (term < CurrentTerm)
+        {
+            return;
+        }
+        if (ableToSync)
+        {
+            if (LogReplicated.ContainsKey(index))
+            {
+                LogReplicated[index]++;
+                Console.Write(index);
+                if (Majority >= LogReplicated[index])
+                {
+                    CommitIndex++;
+                }
+            }
+        }
         await Task.CompletedTask;
     }
 
+
+    public void ReceiveClientRequest(string key, string value)
+    {
+        LogReplicated.Add(NextIndex, 1);
+        LogList.Add(new Log(CurrentTerm, key, value));
+        if (Majority == 1)
+        {
+            CommitIndex++;
+        }
+    }
     public double GetRemainingTime()
     {
         double elapsedTime = (DateTime.Now - StartTime).TotalMilliseconds;
@@ -201,12 +227,7 @@ public class Node : INode
         return Math.Max(remainingTime, 0);
     }
 
-    public void ReceiveClientRequest(string key, string value)
-    {
-        LogList.Add(new Log(CurrentTerm, key, value));
-    }
-
-    public async Task RequestAppendLogRPC(int leaderId, int term, Log[] entries)
+    public async Task RequestAppendLogRPC(int leaderId, int term, Log[] entries, int commitIndex)
     {
         if (term >= CurrentTerm)
         {
@@ -229,5 +250,10 @@ public class Node : INode
             }
         }
         await SendAppendResponse(leaderId, term);
+    }
+
+    public void Dispose()
+    {
+        InternalTimer?.Dispose();
     }
 }
