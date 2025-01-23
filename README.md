@@ -30,7 +30,7 @@ appendentries RPC to all nodes
 5. [X] leaders maintain an "nextIndex" for each follower that is the index of the next log entry the leader will send to that follower
 6. [X] Highest committed index from the leader is included in AppendEntries RPC's
 7. [ ] When a follower learns that a log entry is committed, it applies the entry to its local state machine
-8. [ ] when the leader has received a majority confirmation of a log, it commits it
+8. [X] when the leader has received a majority confirmation of a log, it commits it
 9. the leader commits logs by incrementing its committed log index
 10. [ ] given a follower receives an appendentries with log(s) it will add those entries to its personal log
 11. [ ] a followers response to an appendentries includes the followers term number and log entry index
