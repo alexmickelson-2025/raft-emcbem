@@ -22,6 +22,7 @@ public class Node : INode
     public int MaxInterval { get; set; } = 301;
     public int HeartbeatInterval { get; set; } = 50;
     public int CommitIndex { get; set; }
+    public Dictionary<string, string> InternalStateMachine {get; set;} = new();
 
 
     public Node(int idNum)
@@ -202,7 +203,7 @@ public class Node : INode
                 LogReplicated[index]++;
                 if (LogReplicated[index] >= Majority)
                 {
-                    CommitIndex++;
+                    CommitLog(index - 1);
                 }
             }
         }
@@ -216,8 +217,15 @@ public class Node : INode
         LogList.Add(new Log(CurrentTerm, key, value));
         if (Majority == 1)
         {
-            CommitIndex++;
+            CommitLog(LogList.Count() - 1);
         }
+    }
+
+    private void CommitLog(int logIndexToCommit)
+    {
+        CommitIndex++;
+        var LogToAdd = LogList[logIndexToCommit];
+        InternalStateMachine[LogToAdd.Key] = LogToAdd.Value;
     }
     public double GetRemainingTime()
     {

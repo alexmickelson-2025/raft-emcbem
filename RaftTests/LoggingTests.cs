@@ -117,7 +117,44 @@ public class LoggingTests
         await moqNode1.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 1);
     }
 
-    // Testing #8.a
+    // Testinng #8.a
+    [Fact]
+    public void GivenALeaderNodeWhenAClientRequestGetsCommitedItGetsAddedToTheStateMachine()
+    {
+        // Given
+        var node = new Node(1);
+    
+        // When
+        node.InitiateLeadership();
+        node.ReceiveClientRequest("hi", "there");
+    
+        // Then
+        node.InternalStateMachine["hi"].Should().Be("there");
+    }
+
+    // Testing #8.b
+    [Fact]
+    public async Task GivenALeaderNodeWhenAClientRequestGetsCommitedItGetsAddedToTheStateMachineEvenInALargeCluster()
+    {
+        // Given
+        var node = new Node(1, TestNode.LargeCluster);
+    
+        // When
+        node.InitiateLeadership();
+        node.ReceiveClientRequest("hi", "there");
+        node.InternalStateMachine.ContainsKey("hi").Should().BeFalse();
+
+        await node.ResponseAppendLogRPC(true, 2, 0, 1);
+        node.InternalStateMachine.ContainsKey("hi").Should().BeFalse();
+
+        await node.ResponseAppendLogRPC(true, 2, 0, 1);
+    
+        // Then
+        node.InternalStateMachine.ContainsKey("hi").Should().BeTrue();
+        node.InternalStateMachine["hi"].Should().Be("there");
+    }
+
+    // Testing #9.a
     [Fact]
     public void GivenALeaderNodeWhenTheyRecieveAClientRequestAndTheyAreTheOnlyNodeInTheClusterItIsCommitedAndTheIndexGoesUp()
     {
@@ -128,7 +165,7 @@ public class LoggingTests
         node.CommitIndex.Should().Be(1);  
     }
 
-    // Testing #8.b
+    // Testing #9.b
     [Fact]
     public async Task GivenALeaderNodeWhenTheyRecieveAClientRequestAndTheClusterSizeIs5InThen2NodesRespondWithSuccessThenTheIndexGoesUp()
     {
