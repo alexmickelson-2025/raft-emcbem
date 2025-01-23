@@ -66,10 +66,37 @@ public class LoggingTests
         node.OtherNextIndexes[2].Should().Be(1);
         node.OtherNextIndexes.Values.All(x => x == 1).Should().BeTrue();
 
-        node.NextIndex = 12;
+        node.ReceiveClientRequest("key", "log");
         node.InitiateLeadership();
 
-        node.OtherNextIndexes[2].Should().Be(13);
-        node.OtherNextIndexes.Values.All(x => x == 13).Should().BeTrue();
+        node.OtherNextIndexes[2].Should().Be(2);
+        node.OtherNextIndexes.Values.All(x => x == 2).Should().BeTrue();
     }
+
+    // Testing #5
+    [Fact]
+    public void GivenALeaderNodeWhenSendingOutHeartbeatsEachNodeGetsLogsBasedOffOfTheirNextIndex()
+    {
+        var moqNode1 = Substitute.For<INode>();
+        moqNode1.Id = 1;
+        var moqNode2 = Substitute.For<INode>();
+        moqNode2.Id = 2;
+        var node = new Node(0, [moqNode1, moqNode2]);
+        node.InitiateLeadership();
+
+        var log1 = new Log(0, "Ballin", "Test");
+        var log2 = new Log(0, "Ballin2", "Test2");
+        node.LogList = [log1, log2];
+
+        node.OtherNextIndexes[1] = 1;
+        node.OtherNextIndexes[2] = 2;
+
+        Thread.Sleep(75);
+
+        moqNode1.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 2 && logs[0].Equals(log1) && logs[1].Equals(log2) ));
+        moqNode2.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 1 && logs[0].Equals(log2) ));
+    }
+
+    // Testing #6 
+    
 }

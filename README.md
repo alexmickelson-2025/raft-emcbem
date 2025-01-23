@@ -27,7 +27,7 @@ appendentries RPC to all nodes
 2. [X] when a leader receives a command from the client, it is appended to its log
 3. [X] when a node is new, its log is empty
 4. [X] when a leader wins an election, it initializes the nextIndex for each follower to the index just after the last one it its log
-5. [ ] leaders maintain an "nextIndex" for each follower that is the index of the next log entry the leader will send to that follower
+5. [X] leaders maintain an "nextIndex" for each follower that is the index of the next log entry the leader will send to that follower
 6. [ ] Highest committed index from the leader is included in AppendEntries RPC's
 7. [ ] When a follower learns that a log entry is committed, it applies the entry to its local state machine
 8. [ ] when the leader has received a majority confirmation of a log, it commits it

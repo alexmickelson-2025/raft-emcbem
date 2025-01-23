@@ -1,10 +1,11 @@
-﻿namespace RaftLib;
+﻿using System.Reflection.Metadata.Ecma335;
+
+namespace RaftLib;
 
 
 public class Node : INode
 {
     public NodeState CurrentState { get; set; } = NodeState.Follower;
-    public int NextIndex { get; set; }
     public Dictionary<int, int> OtherNextIndexes { get; set; } = new();
     public int CurrentTerm { get; set; } = 0;
     public System.Timers.Timer? internalTimer { get; set; }
@@ -17,6 +18,7 @@ public class Node : INode
     public DateTime StartTime;
     public double TimerInterval = 0;
     public List<Log> LogList { get; set;} = new();
+    public int NextIndex { get => LogList.Count + 1; }
     public int MinInterval { get; set; } = 150;
     public int MaxInterval { get; set; } = 301;
     public int HeartbeatInterval { get; set; } = 50;
@@ -91,7 +93,7 @@ public class Node : INode
     {
         foreach(var node in nodes)
         {
-            OtherNextIndexes[node.Id] = NextIndex + 1;
+            OtherNextIndexes[node.Id] = NextIndex;
         }
     }
 
@@ -112,8 +114,21 @@ public class Node : INode
     {
         foreach (var node in nodes)
         {
-            node.RequestAppendLogRPC(Id, CurrentTerm, LogList.ToArray());
+            node.RequestAppendLogRPC(Id, CurrentTerm, GetOtherNodesLogList(node.Id));
         }
+    }
+
+    private Log[] GetOtherNodesLogList(int nodeId)
+    {
+        var nodesNextIndex = OtherNextIndexes[nodeId];
+        var logDifference = NextIndex - nodesNextIndex;
+
+        if (logDifference < 0)
+        {
+            return [];
+        }
+
+        return LogList.Skip(nodesNextIndex - 1).Take(logDifference).ToArray();
     }
 
     private void SendVotes()
