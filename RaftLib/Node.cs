@@ -4,6 +4,8 @@
 public class Node : INode
 {
     public NodeState CurrentState { get; set; } = NodeState.Follower;
+    public int NextIndex { get; set; }
+    public Dictionary<int, int> OtherNextIndexes { get; set; } = new();
     public int CurrentTerm { get; set; } = 0;
     public System.Timers.Timer? internalTimer { get; set; }
     public Dictionary<int, int> WhoDidIVoteFor { get; set; } = new();
@@ -14,9 +16,7 @@ public class Node : INode
     public int CurrentLeader { get; set; }
     public DateTime StartTime;
     public double TimerInterval = 0;
-
     public List<Log> LogList { get; set;} = new();
-
     public int MinInterval { get; set; } = 150;
     public int MaxInterval { get; set; } = 301;
     public int HeartbeatInterval { get; set; } = 50;
@@ -78,30 +78,42 @@ public class Node : INode
     {
         internalTimer?.Stop();
         internalTimer?.Dispose();
+
         CurrentState = NodeState.Leader;
         CurrentLeader = Id;
-        SendHeartbeats();
+
+        SetupOtherNodesIndexes();
+
+        StartHeartbeatTimer();
+    }
+
+    private void SetupOtherNodesIndexes()
+    {
+        foreach(var node in nodes)
+        {
+            OtherNextIndexes[node.Id] = NextIndex + 1;
+        }
     }
 
     private void StartHeartbeatTimer()
     {
+        SendHeartbeats();
         internalTimer?.Stop();
         internalTimer?.Dispose();
         TimerInterval = HeartbeatInterval;
+        StartTime = DateTime.Now;
         internalTimer = new System.Timers.Timer(HeartbeatInterval);
-        internalTimer.Elapsed += (s, e) => { SendHeartbeats(); };
+        internalTimer.Elapsed += (s, e) => { StartHeartbeatTimer(); };
         internalTimer.AutoReset = false;
         internalTimer.Start();
     }
 
     private void SendHeartbeats()
     {
-        StartTime = DateTime.Now;
         foreach (var node in nodes)
         {
-            node.RequestAppendLogRPC(Id, CurrentTerm);
+            node.RequestAppendLogRPC(Id, CurrentTerm, LogList.ToArray());
         }
-        StartHeartbeatTimer();
     }
 
     private void SendVotes()
@@ -135,31 +147,6 @@ public class Node : INode
                 InitiateLeadership();
             }
         }
-    }
-
-    public async Task RequestAppendLogRPC(int leaderId, int term)
-    {
-        if (term >= CurrentTerm)
-        {
-            if (term > CurrentTerm)
-            {
-                CurrentTerm = term;
-                CurrentLeader = leaderId;
-                CurrentState = NodeState.Follower;
-            }
-
-            if (term == CurrentTerm && NodeState.Candidate == CurrentState)
-            {
-                CurrentState = NodeState.Follower;
-                CurrentLeader = leaderId;
-            }
-
-            if (NodeState.Leader != CurrentState)
-            {
-                StartNewCanidacyTimer();
-            }
-        }
-        await SendAppendResponse(leaderId, term);
     }
 
     private async Task SendAppendResponse(int leaderId, int term)
@@ -202,5 +189,30 @@ public class Node : INode
     public void ReceiveClientRequest(string key, string value)
     {
         LogList.Add(new Log(CurrentTerm, key, value));
+    }
+
+    public async Task RequestAppendLogRPC(int leaderId, int term, Log[] entries)
+    {
+        if (term >= CurrentTerm)
+        {
+            if (term > CurrentTerm)
+            {
+                CurrentTerm = term;
+                CurrentLeader = leaderId;
+                CurrentState = NodeState.Follower;
+            }
+
+            if (term == CurrentTerm && NodeState.Candidate == CurrentState)
+            {
+                CurrentState = NodeState.Follower;
+                CurrentLeader = leaderId;
+            }
+
+            if (NodeState.Leader != CurrentState)
+            {
+                StartNewCanidacyTimer();
+            }
+        }
+        await SendAppendResponse(leaderId, term);
     }
 }

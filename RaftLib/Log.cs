@@ -13,4 +13,30 @@ public class Log
         Value = value;
     }
 
+     public override bool Equals(object? obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+            {
+                return false;
+            }
+            Log otherLog = (Log)obj;
+
+            return Term == otherLog.Term &&
+                   Key == otherLog.Key &&
+                   Value == otherLog.Value;
+        }
+        
+    //Chat made this
+    public override int GetHashCode()
+    {
+        unchecked // Allow overflow for better performance
+        {
+            int hash = 17;
+            hash = hash * 31 + Term.GetHashCode();
+            hash = hash * 31 + (Key?.GetHashCode() ?? 0);
+            hash = hash * 31 + (Value?.GetHashCode() ?? 0);
+            return hash;
+        }
+    }
+
 }
