@@ -173,10 +173,10 @@ public class Node : INode
         {
             if (term < CurrentTerm)
             {
-                await nodeToRespondTo.ResponseAppendLogRPC(false, Id, CurrentTerm, 0);
+                await nodeToRespondTo.ResponseAppendLogRPC(false, Id, CurrentTerm, LogList.Count());
                 return;
             }
-            await nodeToRespondTo.ResponseAppendLogRPC(true, Id, CurrentTerm, 0);
+            await nodeToRespondTo.ResponseAppendLogRPC(true, Id, CurrentTerm,  LogList.Count());
         }
     }
 

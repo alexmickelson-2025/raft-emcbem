@@ -196,4 +196,19 @@ public class LoggingTests
         // Then
         node.LogList.Should().Contain(LogToAdd);
     }
+
+    // Testing #11
+    [Fact]
+    public async Task GivenAFollowerNodeWhenRespondingToAnAppendEntriesThenItIncludesTheTermAndLogEntryIndex()
+    {
+        var moqLeader = Substitute.For<INode>();
+        moqLeader.Id = 2;
+        var node = new Node(1, [moqLeader]);
+
+        await node.RequestAppendLogRPC(2, 0, [], 0);
+        await moqLeader.Received().ResponseAppendLogRPC(true, 1, 0, 0);
+
+        await node.RequestAppendLogRPC(2, 0, [new Log(0, "blah", "blah")], 0);
+        await moqLeader.Received().ResponseAppendLogRPC(true, 1, 0, 1);
+    }
 }
