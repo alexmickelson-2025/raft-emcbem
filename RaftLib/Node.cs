@@ -115,7 +115,7 @@ public class Node : INode
     {
         foreach (var node in nodes)
         {
-            node.RequestAppendLogRPC(Id, CurrentTerm, GetOtherNodesLogList(node.Id), CommitIndex);
+            node.RequestAppendLogRPC(Id, CurrentTerm, GetOtherNodesLogList(node.Id), CommitIndex, LogList.Count, LogList.LastOrDefault()?.Term ?? 0);
         }
     }
 
@@ -234,7 +234,7 @@ public class Node : INode
         return Math.Max(remainingTime, 0);
     }
 
-    public async Task RequestAppendLogRPC(int leaderId, int term, Log[] entries, int commitIndex)
+    public async Task RequestAppendLogRPC(int leaderId, int term, Log[] entries, int commitIndex, int prevIndex, int prevTerm)
     {
         if (term >= CurrentTerm)
         {

@@ -22,7 +22,7 @@ public class LoggingTests
        await moqNode.Received().RequestAppendLogRPC(1, 0, Arg.Is<Log[]>(logs =>
             logs.Length == 1 &&
             logs[0].Equals(new Log(0, "test1", "test2"))
-        ), 0);
+        ), 0, 1, 0);
         }
 
 
@@ -93,8 +93,8 @@ public class LoggingTests
 
         Thread.Sleep(75);
 
-        moqNode1.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 2 && logs[0].Equals(log1) && logs[1].Equals(log2) ), 0);
-        moqNode2.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 1 && logs[0].Equals(log2) ), 0);
+        moqNode1.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 2 && logs[0].Equals(log1) && logs[1].Equals(log2) ), 0, 2, 0);
+        moqNode2.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 1 && logs[0].Equals(log2) ), 0, 2, 0);
     }
 
     // Testing #6 
@@ -107,13 +107,13 @@ public class LoggingTests
 
         //Arrange
         node.InitiateLeadership();
-        await moqNode1.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 0);
+        await moqNode1.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 0, 0, 0);
         node.ReceiveClientRequest("test", "log");
         await node.ResponseAppendLogRPC(true, 1, 0, 1);
         await Task.Delay(75);
 
         //Assert
-        await moqNode1.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 1);
+        await moqNode1.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 1, 1, 0);
     }
 
     // Testinng #8.a
@@ -192,7 +192,7 @@ public class LoggingTests
         var LogToAdd = new Log(1, "Key", "Value");
     
         // When
-        await node.RequestAppendLogRPC(2, 0, [LogToAdd], 0);
+        await node.RequestAppendLogRPC(2, 0, [LogToAdd], 0, 0, 0);
 
         // Then
         node.LogList.Should().Contain(LogToAdd);
@@ -206,10 +206,10 @@ public class LoggingTests
         moqLeader.Id = 2;
         var node = new Node(1, [moqLeader]);
 
-        await node.RequestAppendLogRPC(2, 0, [], 0);
+        await node.RequestAppendLogRPC(2, 0, [], 0, 0, 0);
         await moqLeader.Received().ResponseAppendLogRPC(true, 1, 0, 0);
 
-        await node.RequestAppendLogRPC(2, 0, [new Log(0, "blah", "blah")], 0);
+        await node.RequestAppendLogRPC(2, 0, [new Log(0, "blah", "blah")], 0, 0, 0);
         await moqLeader.Received().ResponseAppendLogRPC(true, 1, 0, 1);
     }
 
@@ -226,5 +226,24 @@ public class LoggingTests
     
         // Then
         node.InternalStateMachine["test"].Should().Be("machine");
+    }
+
+    // Testing #15
+    [Fact]
+    public void GivenALeaderNodeWhenSendingHeartbeatsThenIncludeTheTermAndIndexOfTheLastLog()
+    {
+        // Given
+        var moqFollower = Substitute.For<INode>();
+        moqFollower.Id = 2;
+        var leader = new Node(1, [moqFollower]);
+        leader.InitiateLeadership();
+        moqFollower.Received().RequestAppendLogRPC(1, 0, [], 0, 0, 0);
+    
+        // When
+        leader.ReceiveClientRequest("test","test");
+        Thread.Sleep(75);
+    
+        // Then
+        moqFollower.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 0, 1, 0);
     }
 }
