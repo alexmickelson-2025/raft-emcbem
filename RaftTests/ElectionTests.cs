@@ -162,7 +162,7 @@ public class ElectionTests
         {
             var originalInterval = node.InternalTimer?.Interval;
             originalInterval.Should().BeInRange(150, 301);
-            node.Dispose();
+            node.StopTimer();
             node = new Node(1, LargeCluster);
             if(originalInterval == node.InternalTimer?.Interval)
             {

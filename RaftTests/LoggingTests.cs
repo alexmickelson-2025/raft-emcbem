@@ -1,4 +1,3 @@
-using System.Drawing;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -180,5 +179,21 @@ public class LoggingTests
 
         await node.ResponseAppendLogRPC(true, 3, 0, 1);
         node.CommitIndex.Should().Be(1);  
+    }
+
+    // Testing #10
+    [Fact]
+    public async Task GivenAFollowerNodeRecievesLogsToAppendTheyGetAddedToPersonalLogList()
+    {
+        // Given
+        var node = new Node();
+        node.StopTimer();
+        var LogToAdd = new Log(1, "Key", "Value");
+    
+        // When
+        await node.RequestAppendLogRPC(2, 0, [LogToAdd], 0);
+
+        // Then
+        node.LogList.Should().Contain(LogToAdd);
     }
 }

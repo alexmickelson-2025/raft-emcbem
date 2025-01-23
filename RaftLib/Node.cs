@@ -253,13 +253,14 @@ public class Node : INode
 
             if (NodeState.Leader != CurrentState)
             {
+                LogList.AddRange(entries);
                 StartNewCanidacyTimer();
             }
         }
         await SendAppendResponse(leaderId, term);
     }
 
-    public void Dispose()
+    public void StopTimer()
     {
         InternalTimer?.Dispose();
     }
