@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
@@ -114,5 +115,33 @@ public class LoggingTests
 
         //Assert
         await moqNode1.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 1);
+    }
+
+    // Testing #8.a
+    [Fact]
+    public void GivenALeaderNodeWhenTheyRecieveAClientRequestAndTheyAreTheOnlyNodeInTheClusterItIsCommitedAndTheIndexGoesUp()
+    {
+        var node =  new Node(1, []);
+    
+        node.ReceiveClientRequest("hi", "there");    
+
+        node.CommitIndex.Should().Be(1);  
+    }
+
+    // Testing #8.b
+    [Fact]
+    public async Task GivenALeaderNodeWhenTheyRecieveAClientRequestAndTheClusterSizeIs5InThen2NodesRespondWithSuccessThenTheIndexGoesUp()
+    {
+        var node =  new Node(1, TestNode.LargeCluster);
+    
+        node.InitiateLeadership();
+        node.ReceiveClientRequest("hi", "there");    
+        node.CommitIndex.Should().Be(0);  
+
+        await node.ResponseAppendLogRPC(true, 2, 0, 1);
+        node.CommitIndex.Should().Be(0);  
+
+        await node.ResponseAppendLogRPC(true, 3, 0, 1);
+        node.CommitIndex.Should().Be(1);  
     }
 }

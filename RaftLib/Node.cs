@@ -200,8 +200,7 @@ public class Node : INode
             if (LogReplicated.ContainsKey(index))
             {
                 LogReplicated[index]++;
-                Console.Write(index);
-                if (Majority >= LogReplicated[index])
+                if (LogReplicated[index] >= Majority)
                 {
                     CommitIndex++;
                 }
