@@ -420,4 +420,39 @@ public class LoggingTests
 
         await moqFollower.Received().RequestAppendLogRPC(2, 2, Arg.Any<Log[]>(), 0, 1, 2);
     }
+
+    // Testing #16
+    [Fact]
+    public void GivenALeaderNodeWithAnUncommittedLogTheLogStaysUncommittedUntilTheyRecieveAMajority()
+    {
+        // Given
+        var leaderNode = new Node(2, TestNode.LargeCluster);
+        leaderNode.InitiateLeadership();
+        leaderNode.ReceiveClientRequest(new TestClient(), "test", "test");
+    
+        // When
+        //No Responses
+    
+        // Then
+        leaderNode.InternalCommitIndex.Should().Be(0);
+        leaderNode.InternalStateMachine.ContainsKey("test").Should().BeFalse();
+    }
+
+    // Testing #17
+    [Fact]
+    public void GivenALeaderNodeWithAnUncommittedLogTheClientDoesntGetAResponseUntilTheyRecieveAMajority()
+    {
+        // Given
+        var leaderNode = new Node(2, TestNode.LargeCluster);
+        leaderNode.InitiateLeadership();
+        var moqClient = Substitute.For<IClient>();
+        leaderNode.ReceiveClientRequest(moqClient, "test", "test");
+    
+        // When
+        //No Responses
+    
+        // Then
+        leaderNode.InternalCommitIndex.Should().Be(0);
+        moqClient.DidNotReceive().ResponseClientRequestRPC(Arg.Any<bool>());
+    }
 }
