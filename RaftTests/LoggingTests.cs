@@ -438,7 +438,7 @@ public class LoggingTests
         leaderNode.InternalStateMachine.ContainsKey("test").Should().BeFalse();
     }
 
-    // Testing #17
+    // Testing #18
     [Fact]
     public void GivenALeaderNodeWithAnUncommittedLogTheClientDoesntGetAResponseUntilTheyRecieveAMajority()
     {
