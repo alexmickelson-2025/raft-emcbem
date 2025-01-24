@@ -10,7 +10,7 @@ public class Node : INode
     public Dictionary<int, int> WhoDidIVoteFor { get; set; } = new();
     public Dictionary<int, int> CurrentVotesForTerm { get; set; } = new();
     public Dictionary<int, int> LogReplicated { get; set; } = new();
-    public Dictionary<string, string> InternalStateMachine {get; set;} = new();
+    public Dictionary<string, string> InternalStateMachine { get; set; } = new();
     public int Id { get; set; }
     public INode[] nodes { get; set; } = [];
     public int Majority { get => ((nodes.Count() + 1) / 2) + 1; }
@@ -23,6 +23,8 @@ public class Node : INode
     public int MaxInterval { get; set; } = 301;
     public int HeartbeatInterval { get; set; } = 50;
     public int InternalCommitIndex { get; set; }
+    private Action<(string, string)>? LogCommitedEvent;
+
 
 
     public Node(int idNum)
@@ -171,7 +173,7 @@ public class Node : INode
 
         if (nodeToRespondTo != null)
         {
-            await nodeToRespondTo.ResponseAppendLogRPC(response, Id, CurrentTerm,  NextIndex);
+            await nodeToRespondTo.ResponseAppendLogRPC(response, Id, CurrentTerm, NextIndex);
         }
     }
 
@@ -198,7 +200,7 @@ public class Node : INode
                 LogReplicated[index]++;
                 if (LogReplicated[index] >= Majority)
                 {
-                    CommitLog(index);
+                    LeaderCommitLog(index);
                 }
             }
         }
@@ -210,21 +212,40 @@ public class Node : INode
     }
 
 
-    public void ReceiveClientRequest(string key, string value)
+    public void ReceiveClientRequest(IClient clientRequesting, string key, string value)
     {
         LogReplicated.Add(NextIndex, 1);
         LogList.Add(new Log(CurrentTerm, key, value));
+        RegisterForLogCommitEvent(clientRequesting, key, value);
         if (Majority == 1)
         {
-            CommitLog(LogList.Count() - 1);
+            LeaderCommitLog(LogList.Count() - 1);
         }
     }
 
-    private void CommitLog(int logIndexToCommit)
+    private void RegisterForLogCommitEvent(IClient clientRequesting, string key, string value)
+    {
+        //Chat made this but I love it
+        // Named event handler for easy unsubscription
+        void LogHandler((string key, string value) command)
+        {
+            if (command == (key, value))
+            {
+                clientRequesting.ResponseClientRequestRPC(true); // Respond to client
+                LogCommitedEvent -= LogHandler; // Unsubscribe to prevent further calls
+            }
+        }
+
+        // Subscribe to the event
+        LogCommitedEvent += LogHandler;
+    }
+
+    private void LeaderCommitLog(int logIndexToCommit)
     {
         InternalCommitIndex++;
         var LogToAdd = LogList[logIndexToCommit];
         InternalStateMachine[LogToAdd.Key] = LogToAdd.Value;
+        LogCommitedEvent?.Invoke((LogToAdd.Key, LogToAdd.Value));
     }
     public double GetRemainingTime()
     {
@@ -262,16 +283,16 @@ public class Node : INode
 
     private void CommitNeededLogs(int commitIndex)
     {
-        if(LogList.ElementAtOrDefault(commitIndex - 1) != null)
+        if (LogList.ElementAtOrDefault(commitIndex - 1) != null)
         {
-            if(commitIndex <= InternalCommitIndex)
+            if (commitIndex <= InternalCommitIndex)
             {
                 return;
             }
             else
             {
-                var logsToCommit = LogList.Skip(InternalCommitIndex).Take(commitIndex - InternalCommitIndex );
-                foreach(var log in logsToCommit)
+                var logsToCommit = LogList.Skip(InternalCommitIndex).Take(commitIndex - InternalCommitIndex);
+                foreach (var log in logsToCommit)
                 {
                     InternalStateMachine[log.Key] = log.Value;
                 }
@@ -287,9 +308,9 @@ public class Node : INode
     private void AddOrRemoveLogs(int leaderId, Log[] entries, int prevIndex, int prevTerm)
     {
         var ourPrevTerm = NextIndex > 0 ? LogList[NextIndex - 1].Term : 0;
-        if(NextIndex != prevIndex || prevTerm != ourPrevTerm)
+        if (NextIndex != prevIndex || prevTerm != ourPrevTerm)
         {
-            if (LogList.Count > prevIndex )
+            if (LogList.Count > prevIndex)
             {
                 LogList.RemoveRange(prevIndex, LogList.Count - (prevIndex));
             }
@@ -302,17 +323,17 @@ public class Node : INode
 
     private bool DetermineResponse(int term, int prevIndex, int prevTerm)
     {
-        if(term < CurrentTerm)
+        if (term < CurrentTerm)
         {
             return false;
         }
-        var ourPrevIndex = NextIndex ;
+        var ourPrevIndex = NextIndex;
         var ourPrevTerm = NextIndex > 0 ? LogList[NextIndex - 1].Term : 0;
         var response = true;
 
-        if(prevIndex != ourPrevIndex || ourPrevTerm != prevTerm)
+        if (prevIndex != ourPrevIndex || ourPrevTerm != prevTerm)
         {
-            response =  false;
+            response = false;
         }
         return response;
     }

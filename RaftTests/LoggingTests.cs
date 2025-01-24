@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.VisualStudio.TestPlatform.TestExecutor;
 using NSubstitute;
 using NSubstitute.Routing.AutoValues;
 using RaftLib;
@@ -8,6 +9,15 @@ namespace RaftTests;
 
 public class LoggingTests
 {
+    public class TestClient : IClient
+    {
+        public async Task ResponseClientRequestRPC(bool isSuccess)
+        {
+            await Task.CompletedTask;
+        }
+
+        public static TestClient Default {get => new TestClient();}
+    }
     // Testing #1
     [Fact]
     public async Task GivenALeaderWhenWorkingWithAClientRequestItSendsAnAppendEntriesRPCToFollowers()
@@ -17,7 +27,7 @@ public class LoggingTests
         var leaderNode = new Node(1, [moqNode]);
         leaderNode.InitiateLeadership();
 
-        leaderNode.ReceiveClientRequest("test1", "test2");
+        leaderNode.ReceiveClientRequest(TestClient.Default, "test1", "test2");
         await Task.Delay(75);
 
         await moqNode.Received().RequestAppendLogRPC(1, 0, Arg.Is<Log[]>(logs =>
@@ -34,13 +44,13 @@ public class LoggingTests
         var leaderNode = new Node();
         leaderNode.InitiateLeadership();
 
-        leaderNode.ReceiveClientRequest("test1", "value1");
+        leaderNode.ReceiveClientRequest(TestClient.Default, "test1", "value1");
 
         leaderNode.LogList[0].Term.Should().Be(0);
         leaderNode.LogList[0].Key.Should().Be("test1");
         leaderNode.LogList[0].Value.Should().Be("value1");
 
-        leaderNode.ReceiveClientRequest("test2", "value2");
+        leaderNode.ReceiveClientRequest(TestClient.Default, "test2", "value2");
 
         leaderNode.LogList[1].Term.Should().Be(0);
         leaderNode.LogList[1].Key.Should().Be("test2");
@@ -67,7 +77,7 @@ public class LoggingTests
         node.OtherNextIndexes[2].Should().Be(1);
         node.OtherNextIndexes.Values.All(x => x == 1).Should().BeTrue();
 
-        node.ReceiveClientRequest("key", "log");
+        node.ReceiveClientRequest(TestClient.Default, "key", "log");
         node.InitiateLeadership();
 
         node.OtherNextIndexes[2].Should().Be(2);
@@ -109,7 +119,7 @@ public class LoggingTests
         //Arrange
         node.InitiateLeadership();
         await moqNode1.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 0, 0, 0);
-        node.ReceiveClientRequest("test", "log");
+        node.ReceiveClientRequest(TestClient.Default, "test", "log");
         await node.ResponseAppendLogRPC(true, 1, 0, 0);
         await Task.Delay(75);
 
@@ -141,7 +151,7 @@ public class LoggingTests
 
         // When
         node.InitiateLeadership();
-        node.ReceiveClientRequest("hi", "there");
+        node.ReceiveClientRequest(TestClient.Default, "hi", "there");
 
         // Then
         node.InternalStateMachine["hi"].Should().Be("there");
@@ -157,7 +167,7 @@ public class LoggingTests
 
         // When
         node.InitiateLeadership();
-        node.ReceiveClientRequest("hi", "there");
+        node.ReceiveClientRequest(TestClient.Default, "hi", "there");
         node.InternalStateMachine.ContainsKey("hi").Should().BeFalse();
 
         await node.ResponseAppendLogRPC(true, 2, 0, 0);
@@ -176,7 +186,7 @@ public class LoggingTests
     {
         var node = new Node(1, []);
 
-        node.ReceiveClientRequest("hi", "there");
+        node.ReceiveClientRequest(TestClient.Default, "hi", "there");
 
         node.InternalCommitIndex.Should().Be(1);
     }
@@ -188,7 +198,7 @@ public class LoggingTests
         var node = new Node(1, TestNode.LargeCluster);
 
         node.InitiateLeadership();
-        node.ReceiveClientRequest("hi", "there");
+        node.ReceiveClientRequest(TestClient.Default, "hi", "there");
         node.InternalCommitIndex.Should().Be(0);
 
         await node.ResponseAppendLogRPC(true, 2, 0, 0);
@@ -229,6 +239,47 @@ public class LoggingTests
         await moqLeader.Received().ResponseAppendLogRPC(true, 1, 1, 0);
     }
 
+    // Testing #12.a
+    [Fact]
+    public void GivenALeaderNodeWhenAClientsRequestgetsFinishedTheygetNotified()
+    {
+        // Given
+        var moqClient = Substitute.For<IClient>();
+        var leaderNode = new Node(1);
+        leaderNode.InitiateLeadership();
+
+        // When
+        moqClient.DidNotReceive().ResponseClientRequestRPC(true);
+        leaderNode.ReceiveClientRequest(moqClient, "hi", "there");
+    
+        // Then
+        moqClient.Received().ResponseClientRequestRPC(true);
+    }
+
+    // Testing #12.b
+    [Fact]
+    public async Task GivenALeaderNodeWhenALeaderFinallyReceivesAMajorityEnoughThenTheClientGetsNotifiedRightWhenTheLogGetsCommitted()
+    {
+        // Given
+        var moqClient = Substitute.For<IClient>();
+        var leaderNode = new Node(1, TestNode.LargeCluster);
+        leaderNode.InitiateLeadership();
+        leaderNode.ReceiveClientRequest(moqClient, "blah", "blah");
+        await moqClient.DidNotReceive().ResponseClientRequestRPC(Arg.Any<bool>());
+        leaderNode.Majority.Should().Be(3);
+
+        // When
+        await leaderNode.ResponseAppendLogRPC(true, 2, 0, 0);
+        await moqClient.DidNotReceive().ResponseClientRequestRPC(Arg.Any<bool>());
+    
+        await leaderNode.ResponseAppendLogRPC(true, 3, 0, 0);
+
+        // Then
+        leaderNode.LogReplicated[0].Should().Be(3);
+        leaderNode.InternalStateMachine["blah"].Should().Be("blah");
+        await moqClient.Received().ResponseClientRequestRPC(true);
+    }
+
     // Testing #13
     [Fact]
     public void GivenALeaderNodeWhenALogIsCommittedItGetsAddedToTheStateMachine()
@@ -238,7 +289,7 @@ public class LoggingTests
 
         // When
         node.InitiateLeadership();
-        node.ReceiveClientRequest("test", "machine");
+        node.ReceiveClientRequest(TestClient.Default, "test", "machine");
 
         // Then
         node.InternalStateMachine["test"].Should().Be("machine");
@@ -256,7 +307,7 @@ public class LoggingTests
         moqFollower.Received().RequestAppendLogRPC(1, 0, [], 0, 0, 0);
 
         // When
-        leader.ReceiveClientRequest("test", "test");
+        leader.ReceiveClientRequest(TestClient.Default, "test", "test");
         Thread.Sleep(75);
 
         // Then
@@ -307,8 +358,8 @@ public class LoggingTests
         var moqFollower = Substitute.For<INode>();
         moqFollower.Id = 1;
         var leaderNode = new Node(2, [moqFollower]);
-        leaderNode.ReceiveClientRequest("Hi", "There");
-        leaderNode.ReceiveClientRequest("Hi2", "There2");
+        leaderNode.ReceiveClientRequest(TestClient.Default, "Hi", "There");
+        leaderNode.ReceiveClientRequest(TestClient.Default, "Hi2", "There2");
         leaderNode.InitiateLeadership();
 
         // When
@@ -317,6 +368,5 @@ public class LoggingTests
 
         // Then
         leaderNode.OtherNextIndexes[1].Should().Be(2);
-
     }
 }
