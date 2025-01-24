@@ -295,6 +295,22 @@ public class LoggingTests
         node.InternalStateMachine["test"].Should().Be("machine");
     }
 
+    // Testing #14
+    [Fact]
+    public async Task GivenAFollowerNodeWhenTheyReceiveWordThatTheNextCommittIndexIsHigherThenTheirCommittIndexAlsoGoesUp()
+    {
+        // Given
+        var node = new Node(1);
+        node.StopTimer();
+
+        // When
+        await node.RequestAppendLogRPC(1, 1, [new Log(1, "hi", "there")], 1, 0, 0);
+
+        // Then
+        node.InternalCommitIndex.Should().Be(1);
+        node.InternalStateMachine["hi"].Should().Be("there");
+    }
+
     // Testing #15.a
     [Fact]
     public void GivenALeaderNodeWhenSendingHeartbeatsThenIncludeTheTermAndIndexOfTheLastLog()
