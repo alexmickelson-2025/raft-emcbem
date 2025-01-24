@@ -117,7 +117,7 @@ public class Node : INode
     {
         foreach (var node in nodes)
         {
-            int indexOfPersonalPrevLog =  NextIndex + 1 - OtherNextIndexes[node.Id];
+            int indexOfPersonalPrevLog =  OtherNextIndexes[node.Id] - 1;
             node.RequestAppendLogRPC(Id, CurrentTerm, GetOtherNodesLogList(node.Id), InternalCommitIndex, indexOfPersonalPrevLog, LogList.ElementAtOrDefault(indexOfPersonalPrevLog)?.Term ?? 0);
         }
     }
@@ -188,7 +188,7 @@ public class Node : INode
         }
     }
 
-    public async Task ResponseAppendLogRPC(bool ableToSync, int id, int term, int index)
+    public async Task ResponseAppendLogRPC(bool ableToSync, int id, int term, int othersNextIndex)
     {
         if (term < CurrentTerm)
         {
@@ -196,14 +196,16 @@ public class Node : INode
         }
         if (ableToSync)
         {
-            if (LogReplicated.ContainsKey(index))
+            int indexLogWasAddedToLast = othersNextIndex - 1;
+            if (LogReplicated.ContainsKey(indexLogWasAddedToLast))
             {
-                LogReplicated[index]++;
-                if (LogReplicated[index] >= Majority)
+                LogReplicated[indexLogWasAddedToLast]++;
+                if (LogReplicated[indexLogWasAddedToLast] == Majority)
                 {
-                    LeaderCommitLog(index);
+                    LeaderCommitLog(indexLogWasAddedToLast);
                 }
             }
+            OtherNextIndexes[id] = othersNextIndex;
         }
         else
         {
