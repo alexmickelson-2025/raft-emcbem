@@ -431,6 +431,7 @@ public class LoggingTests
         leaderNode.ReceiveClientRequest(new TestClient(), "test", "test");
     
         // When
+        Thread.Sleep(75);
         //No Responses
     
         // Then
@@ -477,5 +478,22 @@ public class LoggingTests
         // Then
         leaderNode.InternalCommitIndex.Should().Be(0);
         moqClient.DidNotReceive().ResponseClientRequestRPC(Arg.Any<bool>());
+    }
+
+    // Testing #19
+    [Fact]
+    public async Task GivenAFollowerNodeRecievesAnAppendEntriesRPCTooFarIntoTheFutureTheyRejectTheTest()
+    {
+        // Given
+        var moqLeader = Substitute.For<INode>();
+        moqLeader.Id = 2;
+        var node = new Node(1, [moqLeader]);
+        node.StopTimer();
+    
+        // When
+        await node.RequestAppendLogRPC(2, 1, [new Log(1, "grab", "bage")], 0, 3, 3);
+    
+        // Then
+        await moqLeader.Received().ResponseAppendLogRPC(false, 1, 1, 0);
     }
 }

@@ -47,5 +47,5 @@ appendentries RPC to all nodes
 16. [X] when a leader sends a heartbeat with a log, but does not receive responses from a majority of nodes, the entry is uncommitted
 17. [X] if a leader does not response from a follower, the leader continues to send the log entries in subsequent heartbeats  
 18. [X] if a leader cannot commit an entry, it does not send a response to the client
-19. [ ] if a node receives an appendentries with a logs that are too far in the future from your local state, you should reject the appendentries
+19. [X] if a node receives an appendentries with a logs that are too far in the future from your local state, you should reject the appendentries
 20. [ ] if a node receives and appendentries with a term and index that do not match, you will reject the appendentry until you find a matching log 
