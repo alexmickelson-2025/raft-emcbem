@@ -105,7 +105,7 @@ public class LoggingTests
         Thread.Sleep(75);
 
         moqNode1.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 2 && logs[0].Equals(log1) && logs[1].Equals(log2)), 0, 2, 0);
-        moqNode2.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 1 && logs[0].Equals(log2)), 0, 2, 0);
+        moqNode2.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 1 && logs[0].Equals(log2)), 0, 1, 0);
     }
 
     // Testing #6 
@@ -384,5 +384,40 @@ public class LoggingTests
 
         // Then
         leaderNode.OtherNextIndexes[1].Should().Be(2);
+    }
+
+    // Testing #15.e
+    [Fact]
+    public async Task GivenALeaderNodeWhenSendingOutHeartbeatsThePrevIndexFromCorrectLog()
+    {
+        var moqFollower = Substitute.For<INode>();
+        moqFollower.Id = 1;
+        var leaderNode = new Node(2,[moqFollower]);
+        leaderNode.InitiateLeadership();
+        leaderNode.ReceiveClientRequest(TestClient.Default, "test", "test");
+        leaderNode.ReceiveClientRequest(TestClient.Default, "test", "test");
+        leaderNode.OtherNextIndexes[1] = 2;
+
+        Thread.Sleep(75);
+
+        await moqFollower.Received().RequestAppendLogRPC(2, 0, Arg.Any<Log[]>(), 0, 1, 0);
+    }
+
+    // Testing #15.f
+    [Fact]
+    public async Task GivenALeaderNodeWhenSendingOutHeartbeatsPrevTermFromCorrectLog()
+    {
+        var moqFollower = Substitute.For<INode>();
+        moqFollower.Id = 1;
+        var leaderNode = new Node(2,[moqFollower]);
+        leaderNode.InitiateLeadership();
+        leaderNode.CurrentTerm = 2;
+        leaderNode.ReceiveClientRequest(TestClient.Default, "test", "test");
+        leaderNode.ReceiveClientRequest(TestClient.Default, "test", "test");
+        leaderNode.OtherNextIndexes[1] = 2;
+
+        Thread.Sleep(75);
+
+        await moqFollower.Received().RequestAppendLogRPC(2, 2, Arg.Any<Log[]>(), 0, 1, 2);
     }
 }

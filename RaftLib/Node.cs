@@ -117,7 +117,8 @@ public class Node : INode
     {
         foreach (var node in nodes)
         {
-            node.RequestAppendLogRPC(Id, CurrentTerm, GetOtherNodesLogList(node.Id), InternalCommitIndex, LogList.Count, LogList.LastOrDefault()?.Term ?? 0);
+            int indexOfPersonalPrevLog =  NextIndex + 1 - OtherNextIndexes[node.Id];
+            node.RequestAppendLogRPC(Id, CurrentTerm, GetOtherNodesLogList(node.Id), InternalCommitIndex, indexOfPersonalPrevLog, LogList.ElementAtOrDefault(indexOfPersonalPrevLog)?.Term ?? 0);
         }
     }
 
