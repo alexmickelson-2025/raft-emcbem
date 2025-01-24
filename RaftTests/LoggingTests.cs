@@ -117,6 +117,21 @@ public class LoggingTests
         await moqNode1.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 1, 1, 0);
     }
 
+    // Testing #7
+    [Fact]
+    public async Task GivenAFollowerNodeWhenTheyGetAHeartbeatWithACommitIndexGreaterThanTheirCommittedIndexThenTheyCommitThoseLogsIntoTheirLocalState()
+    {
+        // Given
+        var node = new Node(1);
+        node.StopTimer();
+    
+        // When
+        await node.RequestAppendLogRPC(1, 1, [new Log(1, "there", "their")], 1, 0, 0);
+    
+        // Then
+        node.InternalStateMachine["there"].Should().Be("their");
+    }
+
     // Testinng #8.a
     [Fact]
     public void GivenALeaderNodeWhenAClientRequestGetsCommitedItGetsAddedToTheStateMachine()
@@ -130,7 +145,7 @@ public class LoggingTests
 
         // Then
         node.InternalStateMachine["hi"].Should().Be("there");
-        node.CommitIndex.Should().Be(1);
+        node.InternalCommitIndex.Should().Be(1);
     }
 
     // Testing #8.b
@@ -163,7 +178,7 @@ public class LoggingTests
 
         node.ReceiveClientRequest("hi", "there");
 
-        node.CommitIndex.Should().Be(1);
+        node.InternalCommitIndex.Should().Be(1);
     }
 
     // Testing #9.b
@@ -174,13 +189,13 @@ public class LoggingTests
 
         node.InitiateLeadership();
         node.ReceiveClientRequest("hi", "there");
-        node.CommitIndex.Should().Be(0);
+        node.InternalCommitIndex.Should().Be(0);
 
         await node.ResponseAppendLogRPC(true, 2, 0, 0);
-        node.CommitIndex.Should().Be(0);
+        node.InternalCommitIndex.Should().Be(0);
 
         await node.ResponseAppendLogRPC(true, 3, 0, 0);
-        node.CommitIndex.Should().Be(1);
+        node.InternalCommitIndex.Should().Be(1);
     }
 
     // Testing #10

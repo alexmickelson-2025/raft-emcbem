@@ -22,7 +22,7 @@ public class Node : INode
     public int MinInterval { get; set; } = 150;
     public int MaxInterval { get; set; } = 301;
     public int HeartbeatInterval { get; set; } = 50;
-    public int CommitIndex { get; set; }
+    public int InternalCommitIndex { get; set; }
 
 
     public Node(int idNum)
@@ -115,7 +115,7 @@ public class Node : INode
     {
         foreach (var node in nodes)
         {
-            node.RequestAppendLogRPC(Id, CurrentTerm, GetOtherNodesLogList(node.Id), CommitIndex, LogList.Count, LogList.LastOrDefault()?.Term ?? 0);
+            node.RequestAppendLogRPC(Id, CurrentTerm, GetOtherNodesLogList(node.Id), InternalCommitIndex, LogList.Count, LogList.LastOrDefault()?.Term ?? 0);
         }
     }
 
@@ -222,7 +222,7 @@ public class Node : INode
 
     private void CommitLog(int logIndexToCommit)
     {
-        CommitIndex++;
+        InternalCommitIndex++;
         var LogToAdd = LogList[logIndexToCommit];
         InternalStateMachine[LogToAdd.Key] = LogToAdd.Value;
     }
@@ -255,11 +255,36 @@ public class Node : INode
                 StartNewCanidacyTimer();
             }
         }
-        AddOrRemoveLogs(leaderId, entries, commitIndex, prevIndex, prevTerm);
-        await SendAppendResponse(leaderId, DetermineResponse(term,commitIndex, prevIndex, prevTerm));
+        AddOrRemoveLogs(leaderId, entries, prevIndex, prevTerm);
+        CommitNeededLogs(commitIndex);
+        await SendAppendResponse(leaderId, DetermineResponse(term, prevIndex, prevTerm));
     }
 
-    private void AddOrRemoveLogs(int leaderId, Log[] entries, int commitIndex, int prevIndex, int prevTerm)
+    private void CommitNeededLogs(int commitIndex)
+    {
+        if(LogList.ElementAtOrDefault(commitIndex - 1) != null)
+        {
+            if(commitIndex <= InternalCommitIndex)
+            {
+                return;
+            }
+            else
+            {
+                var logsToCommit = LogList.Skip(InternalCommitIndex).Take(commitIndex - InternalCommitIndex );
+                foreach(var log in logsToCommit)
+                {
+                    InternalStateMachine[log.Key] = log.Value;
+                }
+                InternalCommitIndex = commitIndex;
+            }
+        }
+        else
+        {
+            return;
+        }
+    }
+
+    private void AddOrRemoveLogs(int leaderId, Log[] entries, int prevIndex, int prevTerm)
     {
         var ourPrevTerm = NextIndex > 0 ? LogList[NextIndex - 1].Term : 0;
         if(NextIndex != prevIndex || prevTerm != ourPrevTerm)
@@ -275,7 +300,7 @@ public class Node : INode
         }
     }
 
-    private bool DetermineResponse(int term, int commitIndex, int prevIndex, int prevTerm)
+    private bool DetermineResponse(int term, int prevIndex, int prevTerm)
     {
         if(term < CurrentTerm)
         {
