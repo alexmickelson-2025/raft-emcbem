@@ -279,9 +279,11 @@ public class Node : INode
                 StartNewCanidacyTimer();
             }
         }
+        var originalRepsonse = DetermineResponse(term, prevIndex, prevTerm);
         AddOrRemoveLogs(leaderId, entries, prevIndex, prevTerm);
         CommitNeededLogs(commitIndex);
-        await SendAppendResponse(leaderId, DetermineResponse(term, prevIndex, prevTerm));
+        var response = DetermineResponse(term, prevIndex, prevTerm);
+        await SendAppendResponse(leaderId, response || originalRepsonse);
     }
 
     private void CommitNeededLogs(int commitIndex)

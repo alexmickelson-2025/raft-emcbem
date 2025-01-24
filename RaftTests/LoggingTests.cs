@@ -496,4 +496,30 @@ public class LoggingTests
         // Then
         await moqLeader.Received().ResponseAppendLogRPC(false, 1, 1, 0);
     }
+
+    // Testing #20
+    [Fact]
+    public async Task GivenAFollowerNodeWhenReceivingAppendLogRPCTheyWillOnlyRespondTrueIfTheyFindAValidPrevTermAndPrevIndex()
+    {
+        // Given
+        var moqLeader = Substitute.For<INode>();
+        moqLeader.Id = 2;
+        var node = new Node(1, [moqLeader]);
+        node.StopTimer();
+    
+        // When
+        await node.RequestAppendLogRPC(2, 1, [new Log(1, "grab", "bage")], 0, 3, 1);
+        await moqLeader.Received().ResponseAppendLogRPC(false, 1, 1, 0);
+
+        await node.RequestAppendLogRPC(2, 1, [new Log(1, "grab", "bage"), new Log(1, "grab2", "bage2")], 0, 2, 1);
+        await moqLeader.Received(2).ResponseAppendLogRPC(false, 1, 1, 0);
+
+        await node.RequestAppendLogRPC(2, 1, [new Log(1, "grab", "bage"), new Log(1, "grab2", "bage2"), new Log(1, "grab3", "bage3")], 0, 1, 1);
+        await moqLeader.Received(3).ResponseAppendLogRPC(false, 1, 1, 0);
+
+        await node.RequestAppendLogRPC(2, 1, [new Log(1, "grab", "bage"), new Log(1, "grab2", "bage2"), new Log(1, "grab3", "bage3")], 0, 0, 0);
+        await moqLeader.Received().ResponseAppendLogRPC(true, 1, 1, 3);
+    
+        // Then
+    }
 }
