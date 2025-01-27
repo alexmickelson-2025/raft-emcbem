@@ -37,6 +37,7 @@
                     <p>Election Term: @node.InnerNode.CurrentTerm </p>
                     <p>Current Leader: @node.InnerNode.CurrentLeader</p>
                 </div>
+                <button @onclick="() => {StopNode(node);}">Stop</button>
 
                 <div>
                     <div class="progress" role="progressbar" aria-label="Basic example"
@@ -118,4 +119,17 @@
         return $"{milliSeconds / 1000.0:F1}";
     }
 
+    private void StopNode(SimulationNode node)
+    {
+        if(node.IsStopped)
+        {
+            node.InnerNode.Start();
+            node.IsStopped = false;
+        }
+        else
+        {
+            node.InnerNode.StopTimer();
+            node.IsStopped = true;
+        }
+    }
 }

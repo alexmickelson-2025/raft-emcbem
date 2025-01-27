@@ -185,7 +185,7 @@ public class LoggingTests
     public void GivenALeaderNodeWhenTheyRecieveAClientRequestAndTheyAreTheOnlyNodeInTheClusterItIsCommitedAndTheIndexGoesUp()
     {
         var node = new Node(1, []);
-
+        node.InitiateLeadership();
         node.ReceiveClientRequest(TestClient.Default, "hi", "there");
 
         node.InternalCommitIndex.Should().Be(1);
@@ -374,9 +374,11 @@ public class LoggingTests
         var moqFollower = Substitute.For<INode>();
         moqFollower.Id = 1;
         var leaderNode = new Node(2, [moqFollower]);
+        leaderNode.InitiateLeadership();
         leaderNode.ReceiveClientRequest(TestClient.Default, "Hi", "There");
         leaderNode.ReceiveClientRequest(TestClient.Default, "Hi2", "There2");
         leaderNode.InitiateLeadership();
+
 
         // When
         leaderNode.OtherNextIndexes[1].Should().Be(3);
@@ -519,7 +521,21 @@ public class LoggingTests
 
         await node.RequestAppendLogRPC(2, 1, [new Log(1, "grab", "bage"), new Log(1, "grab2", "bage2"), new Log(1, "grab3", "bage3")], 0, 0, 0);
         await moqLeader.Received().ResponseAppendLogRPC(true, 1, 1, 3);
+    }
+
+    // Testing NaN
+    [Fact]
+    public void GivenAFollowerNodeWhenServicingAClientRequestTheySendRespondWithAFalse()
+    {
+        // Given
+        var moqClient = Substitute.For<IClient>();
+        var node = new Node(1);
+        node.StopTimer();
+    
+        // When
+        node.ReceiveClientRequest(moqClient, "Give", "me");
     
         // Then
+        moqClient.Received().ResponseClientRequestRPC(false);
     }
 }

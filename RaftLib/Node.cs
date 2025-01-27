@@ -1,4 +1,6 @@
-﻿namespace RaftLib;
+﻿using System.Formats.Asn1;
+
+namespace RaftLib;
 
 
 public class Node : INode
@@ -139,14 +141,18 @@ public class Node : INode
     {
         foreach (var node in nodes)
         {
-            node.RequestVoteRPC(Id, CurrentTerm);
+            node.RequestVoteRPC(Id, CurrentTerm, InternalCommitIndex);
         }
     }
 
-    public async Task RequestVoteRPC(int candidateId, int termToVoteFor)
+    public async Task RequestVoteRPC(int candidateId, int termToVoteFor, int committIndex)
     {
         bool result = false;
-        if (!WhoDidIVoteFor.ContainsKey(termToVoteFor) && termToVoteFor > CurrentTerm)
+        if(InternalCommitIndex > committIndex)
+        {
+            result = false;
+        }
+        else if (!WhoDidIVoteFor.ContainsKey(termToVoteFor) && termToVoteFor > CurrentTerm)
         {
             WhoDidIVoteFor.Add(termToVoteFor, candidateId);
             result = true;
@@ -217,6 +223,11 @@ public class Node : INode
 
     public void ReceiveClientRequest(IClient clientRequesting, string key, string value)
     {
+        if(CurrentState != NodeState.Leader)
+        {
+            clientRequesting.ResponseClientRequestRPC(false);
+            return;
+        }
         LogReplicated.Add(NextIndex, 1);
         LogList.Add(new Log(CurrentTerm, key, value));
         RegisterForLogCommitEvent(clientRequesting, key, value);
@@ -345,6 +356,11 @@ public class Node : INode
 
     public void StopTimer()
     {
-        InternalTimer?.Dispose();
+        InternalTimer?.Stop();
+    }
+
+    public void Start()
+    {
+        InternalTimer?.Start();
     }
 }

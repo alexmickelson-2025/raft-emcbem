@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Threading.Tasks;
 using FluentAssertions;
 using NSubstitute;
 using RaftLib;
@@ -12,7 +14,7 @@ public class TestNode : INode
         Id = id;
     }
 
-    public async Task RequestVoteRPC(int candidateId, int termToVoteFor)
+    public async Task RequestVoteRPC(int candidateId, int termToVoteFor, int committIndex)
     {
         await Task.CompletedTask;
     }
@@ -185,7 +187,7 @@ public class ElectionTests
 
         var node = new Node(1, mockedCluster);
 
-        await node.RequestVoteRPC(2, 1);
+        await node.RequestVoteRPC(2, 1, 0);
 
         await leader.Received().ResponseVoteRPC(true, 1);
     }
@@ -200,8 +202,8 @@ public class ElectionTests
 
         var node = new Node(1, mockedCluster);
 
-        await node.RequestVoteRPC(2, 0);
-        await node.RequestVoteRPC(2, -1);
+        await node.RequestVoteRPC(2, 0, 0);
+        await node.RequestVoteRPC(2, -1, 0);
 
         await node2.DidNotReceive().ResponseVoteRPC(true, 1);
         await node2.DidNotReceive().ResponseVoteRPC(true, 2);
@@ -220,8 +222,8 @@ public class ElectionTests
         var mockedCluster = new INode[]{node2, node3};
         var node = new Node(1, mockedCluster);
 
-        await node.RequestVoteRPC(2, 1);
-        await node.RequestVoteRPC(3, 1);
+        await node.RequestVoteRPC(2, 1, 0);
+        await node.RequestVoteRPC(3, 1, 0);
 
 
         await node2.Received().ResponseVoteRPC(true, 1);
@@ -241,8 +243,8 @@ public class ElectionTests
 
         Thread.Sleep(320);
 
-        await node2.Received().RequestVoteRPC(1, node.CurrentTerm);
-        await node3.Received().RequestVoteRPC(1, node.CurrentTerm);
+        await node2.Received().RequestVoteRPC(1, node.CurrentTerm, 0);
+        await node3.Received().RequestVoteRPC(1, node.CurrentTerm, 0);
     }
 
     // Testing 9
@@ -278,8 +280,8 @@ public class ElectionTests
         moqNode.Id = 2;   
         Node node = new Node(1, [moqNode]);
 
-        await node.RequestVoteRPC(2, 1);
-        await node.RequestVoteRPC(2, 2);
+        await node.RequestVoteRPC(2, 1, 0);
+        await node.RequestVoteRPC(2, 2, 0);
 
         await moqNode.Received().ResponseVoteRPC(true, 1);
         await moqNode.Received().ResponseVoteRPC(true, 2);
@@ -464,5 +466,22 @@ public class ElectionTests
         Thread.Sleep(525);
 
         moqNode1.Received(11).RequestAppendLogRPC(1, leaderNode.CurrentTerm, Arg.Any<Log[]>(), 0, 0, 0);
+    }
+
+    // Testing NaN.a
+    [Fact]
+    public async Task GivenACandidateNodeWithACommitIndexOfLessThanFollowerThenTheFollowerDoesNotSendAValidResponseToTheCandidate()
+    {
+        // Given
+        var moqCandidate = Substitute.For<INode>();
+        moqCandidate.Id = 1;
+        var node = new Node(2, [moqCandidate]);
+        node.StopTimer();
+    
+        // When
+        await node.RequestVoteRPC(1, 1, -1);
+    
+        // Then
+        await moqCandidate.Received().ResponseVoteRPC(false, 1);
     }
 }
