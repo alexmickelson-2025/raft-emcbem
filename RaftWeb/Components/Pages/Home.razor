@@ -9,44 +9,83 @@
 <h1>Hello, world!</h1>
 
 <label for="speed">
-        Election timeout between @(FormatMilliSeconds(150 * intervalScaler)) and @(FormatMilliSeconds(300 *
-        intervalScaler)) seconds
-        
+    Election timeout between @(FormatMilliSeconds(150 * intervalScaler)) and @(FormatMilliSeconds(300 *
+    intervalScaler)) seconds
 
-        <input type="range" id="speed" name="speed" min="1" max="150" @bind:event="oninput"
-          @bind=intervalScaler @onchange=UpdateThings />
-          </label>
+
+    <input type="range" id="speed" name="speed" min="1" max="150" @bind:event="oninput" @bind=intervalScaler
+        @onchange=UpdateThings />
+</label>
 
 
 <label for="NetworkRequestDelay">
-     Network Delay @FormatMilliSeconds(networkDelay) seconds
-    <input type="range" id="NetworkRequestDelay" name="NetworkRequestDelay" min="10" max="10000" @bind:event="oninput" @bind=networkDelay @onchange=UpdateThings/>
+    Network Delay @FormatMilliSeconds(networkDelay) seconds
+    <input type="range" id="NetworkRequestDelay" name="NetworkRequestDelay" min="10" max="10000" @bind:event="oninput"
+        @bind=networkDelay @onchange=UpdateThings />
 </label>
+
+<div class="col">
+    <div class="border p-3 rounded-3">
+        <label>
+            Key <input class="form-control" @bind=userInputKey />
+        </label>
+        <label>
+            Value <input class="form-control" @bind=userInputValue />
+        </label>
+        <hr>
+        @foreach (var node in nodes)
+        {
+            <button class="btn btn-outline-primary mx-1" @onclick="() => SendCommand(node)">Send to Node @node.Id</button>
+        }
+        <br>
+        <div>
+            @foreach (var result in ResponseList)
+            {
+                <p>
+                    @result
+                </p>
+            }
+        </div>
+    </div>
+</div>
 
 
 <div class="row">
 
     @foreach (var node in nodes)
     {
-        var percentage = 100 * node.InnerNode.GetRemainingTime()/node.InnerNode.TimerInterval;
+        var percentage = 100 * node.InnerNode.GetRemainingTime() / node.InnerNode.TimerInterval;
         <div class="p-3 col-4">
             <div class="border p-3 rounded-3">
-                <div class="d-flex flex-column">
-                    <p>Id: @node.Id </p>
-                    <p>Current Node State: @node.InnerNode.CurrentState</p>
-                    <p>Election Term: @node.InnerNode.CurrentTerm </p>
-                    <p>Current Leader: @node.InnerNode.CurrentLeader</p>
+                <div class="d-flex flex-row gap-5 pb-3">
+
+                    <div class="d-flex flex-column">
+                        <p>Id: @node.Id </p>
+                        <p>Current Node State: @node.InnerNode.CurrentState</p>
+                        <p>Election Term: @node.InnerNode.CurrentTerm </p>
+                        <p>Current Leader: @node.InnerNode.CurrentLeader</p>
+                    </div>
+                    <button class="w-full" @onclick="() => {StopNode(node);}">@(node.IsStopped ? "Start" : "Stop")</button>
                 </div>
-                <button @onclick="() => {StopNode(node);}">Stop</button>
 
                 <div>
                     <div class="progress" role="progressbar" aria-label="Basic example"
                         aria-valuenow=@(Math.Abs(node.InnerNode.GetRemainingTime())) aria-valuemin="0"
                         aria-valuemax="@(node.InnerNode.TimerInterval)">
-                        <div class="progress-bar bg-dark-subtle"
-                            style="width: @(percentage)%;"></div>
+                        <div class="progress-bar bg-dark-subtle" style="width: @(percentage)%;"></div>
                     </div>
+                </div>
 
+                <div class="bg-body-secondary my-3 p-1 rounded-3">
+                    <strong>LOG</strong>
+                    @foreach (var log in node.InnerNode.LogList.Select((x, i) => (x, i)))
+                    {
+                        <div>
+                            <p class=@(log.i < node.InnerNode.InternalCommitIndex ? "text-success" : "")>
+                                @log.i: @log.x.Term - @log.x.Key: @log.x.Value
+                            </p>
+                        </div>
+                    }
                 </div>
 
             </div>
@@ -60,19 +99,32 @@
 
 @code
 {
+    private static List<bool> ResponseList = new();
+
+    protected override void OnInitialized()
+    {
+        ResponseList = new();
+    }
+
     List<SimulationNode> nodes = new();
+
+    private string userInputKey = "";
+    private string userInputValue = "";
+
 
     private int minInterval = 150;
     private int maxInterval = 301;
     private int heartbeatInterval = 3000;
     private Timer? timer;
 
+    private SimulationClient ourClient = new SimulationClient();
+
     private int networkDelay = 10;
 
     private int intervalScaler = 25;
     void startSimulation()
     {
-        var node1 = new Node(1, minInterval * intervalScaler, maxInterval  * intervalScaler, heartbeatInterval);
+        var node1 = new Node(1, minInterval * intervalScaler, maxInterval * intervalScaler, heartbeatInterval);
         var node2 = new Node(2, minInterval * intervalScaler, maxInterval * intervalScaler, heartbeatInterval);
         var node3 = new Node(3, minInterval * intervalScaler, maxInterval * intervalScaler, heartbeatInterval);
 
@@ -99,6 +151,11 @@
         }, null, 0, 200);
     }
 
+    private void SendCommand(SimulationNode node)
+    {
+        node.InnerNode.ReceiveClientRequest(ourClient, userInputKey, userInputValue);
+    }
+
     public void Dispose()
     {
         timer?.Dispose();
@@ -106,7 +163,7 @@
 
     private void UpdateThings()
     {
-        foreach(var node in nodes)
+        foreach (var node in nodes)
         {
             node.NetworkDelay = networkDelay;
             node.InnerNode.MinInterval = minInterval * intervalScaler;
@@ -121,7 +178,7 @@
 
     private void StopNode(SimulationNode node)
     {
-        if(node.IsStopped)
+        if (node.IsStopped)
         {
             node.InnerNode.Start();
             node.IsStopped = false;
@@ -130,6 +187,15 @@
         {
             node.InnerNode.StopTimer();
             node.IsStopped = true;
+        }
+    }
+
+    internal class SimulationClient : IClient
+    {
+        public async Task ResponseClientRequestRPC(bool isSuccess)
+        {
+            await Task.CompletedTask;
+            ResponseList.Add(isSuccess);
         }
     }
 }

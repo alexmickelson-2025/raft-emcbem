@@ -28,10 +28,11 @@ public class LoggingTests
         leaderNode.InitiateLeadership();
 
         leaderNode.ReceiveClientRequest(TestClient.Default, "test1", "test2");
+        leaderNode.OtherNextIndexes[0] = 0;
         await Task.Delay(75);
 
         await moqNode.Received().RequestAppendLogRPC(1, 0, Arg.Is<Log[]>(logs =>
-             logs.Length == 1 &&
+             logs.Count() == 1 &&
              logs[0].Equals(new Log(0, "test1", "test2"))
          ), 0, 0, 0);
     }
@@ -104,8 +105,8 @@ public class LoggingTests
 
         Thread.Sleep(75);
 
-        moqNode1.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 2 && logs[0].Equals(log1) && logs[1].Equals(log2)), 0, 0, 0);
-        moqNode2.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 1 && logs[0].Equals(log2)), 0, 1, 0);
+        moqNode1.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 1 && logs[0].Equals(log2)), 0, 1, 0);
+        moqNode2.Received().RequestAppendLogRPC(0, 0, Arg.Is<Log[]>(logs => logs.Count() == 0), 0, 2, 0);
     }
 
     // Testing #6 
@@ -118,13 +119,13 @@ public class LoggingTests
 
         //Arrange
         node.InitiateLeadership();
-        await moqNode1.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 0, 0, 0);
+        await moqNode1.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 0, 1, 0);
         node.ReceiveClientRequest(TestClient.Default, "test", "log");
         await node.ResponseAppendLogRPC(true, 2, 0, 1);
         await Task.Delay(75);
 
         //Assert
-        await moqNode1.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 1, 0, 0);
+        await moqNode1.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 1, 1, 0);
     }
 
     // Testing #7
@@ -320,14 +321,14 @@ public class LoggingTests
         moqFollower.Id = 2;
         var leader = new Node(1, [moqFollower]);
         leader.InitiateLeadership();
-        moqFollower.Received().RequestAppendLogRPC(1, 0, [], 0, 0, 0);
+        moqFollower.Received().RequestAppendLogRPC(1, 0, [], 0, 1, 0);
 
         // When
         leader.ReceiveClientRequest(TestClient.Default, "test", "test");
         Thread.Sleep(75);
 
         // Then
-        moqFollower.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 0, 0, 0);
+        moqFollower.Received().RequestAppendLogRPC(1, 0, Arg.Any<Log[]>(), 0, 1, 0);
     }
 
     // Testing 15.b
@@ -420,7 +421,7 @@ public class LoggingTests
 
         Thread.Sleep(75);
 
-        await moqFollower.Received().RequestAppendLogRPC(2, 2, Arg.Any<Log[]>(), 0, 1, 2);
+        await moqFollower.Received().RequestAppendLogRPC(2, 2, Arg.Any<Log[]>(), 0, 2, 2);
     }
 
     // Testing #16
@@ -443,7 +444,7 @@ public class LoggingTests
 
     // Testing #17
     [Fact]
-    public void TestName()
+    public void GivenALeaderThenTheLeaderSendsTheRequestToAppendLogsConstantly()
     {
         // Given
         var moqFollower = Substitute.For<INode>();
@@ -455,12 +456,12 @@ public class LoggingTests
 
         // When
         Thread.Sleep(60);
-        moqFollower.Received().RequestAppendLogRPC(1, 0, Arg.Is<Log[]>(logs => logs.Count() == 2), 0, 0, 0);    
+        moqFollower.Received().RequestAppendLogRPC(1, 0, Arg.Is<Log[]>(logs => logs.Count() == 1), 0, 1, 0);    
 
         Thread.Sleep(60);
 
         // Then
-        moqFollower.Received(2).RequestAppendLogRPC(1, 0, Arg.Is<Log[]>(logs => logs.Count() == 2), 0, 0, 0);    
+        moqFollower.Received(2).RequestAppendLogRPC(1, 0, Arg.Is<Log[]>(logs => logs.Count() == 1), 0, 1, 0);    
 
     }
 
@@ -537,5 +538,23 @@ public class LoggingTests
     
         // Then
         moqClient.Received().ResponseClientRequestRPC(false);
+    }
+
+    // Testing Leader Sends Correct Logs to followers
+    [Fact]
+    public void GivenALeaderNodeWhenRecievingAClientRequestThenTheySendTheCorrectRequest()
+    {
+        var moqNode1 = Substitute.For<INode>();
+        moqNode1.Id = 1;
+        var node = new Node(2, [moqNode1]);
+        node.InitiateLeadership();
+
+        // When
+        node.ReceiveClientRequest(new TestClient(), "hi", "there");
+        node.OtherNextIndexes[1] = 0;
+        Thread.Sleep(60);
+
+        // Then
+        moqNode1.Received(1).RequestAppendLogRPC(2, 0, Arg.Is<Log[]>(logs => logs.Count() == 1), 0, 0, 0);
     }
 }

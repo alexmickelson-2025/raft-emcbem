@@ -449,8 +449,8 @@ public class ElectionTests
 
         node.CurrentTerm.Should().Be(1);
         node.CurrentState.Should().Be(NodeState.Leader);
-        await moqNode1.Received().RequestAppendLogRPC(1,node.CurrentTerm, Arg.Any<Log[]>(), 0, 0, 0);
-        await moqNode2.Received().RequestAppendLogRPC(1,node.CurrentTerm, Arg.Any<Log[]>(), 0, 0, 0);
+        await moqNode1.Received().RequestAppendLogRPC(1,node.CurrentTerm, Arg.Any<Log[]>(), 0, 1, 0);
+        await moqNode2.Received().RequestAppendLogRPC(1,node.CurrentTerm, Arg.Any<Log[]>(), 0, 1, 0);
     }
 
     // Testing #1
@@ -465,7 +465,7 @@ public class ElectionTests
 
         Thread.Sleep(525);
 
-        moqNode1.Received(11).RequestAppendLogRPC(1, leaderNode.CurrentTerm, Arg.Any<Log[]>(), 0, 0, 0);
+        moqNode1.Received(11).RequestAppendLogRPC(1, leaderNode.CurrentTerm, Arg.Any<Log[]>(), 0, 1, 0);
     }
 
     // Testing NaN.a

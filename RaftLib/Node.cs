@@ -90,7 +90,6 @@ public class Node : INode
         CurrentLeader = Id;
 
         SetupOtherNodesIndexes();
-
         StartHeartbeatTimer();
     }
 
@@ -119,8 +118,11 @@ public class Node : INode
     {
         foreach (var node in nodes)
         {
-            int indexOfPersonalPrevLog =  OtherNextIndexes[node.Id] - 1;
-            node.RequestAppendLogRPC(Id, CurrentTerm, GetOtherNodesLogList(node.Id), InternalCommitIndex, indexOfPersonalPrevLog, LogList.ElementAtOrDefault(indexOfPersonalPrevLog)?.Term ?? 0);
+            int indexOfPersonalPrevLog =  OtherNextIndexes[node.Id] == 0 ? 0 : OtherNextIndexes[node.Id] ;
+            int prevTerm = indexOfPersonalPrevLog == 0 ? 0 : LogList.ElementAtOrDefault(indexOfPersonalPrevLog - 1)?.Term ?? 0;
+            System.Console.WriteLine($"Sending a request to {node.Id}. Commit Index: {InternalCommitIndex}. Index Of PerosnalPrevLog: {indexOfPersonalPrevLog}. Sending over a list of size {GetOtherNodesLogList(node.Id).Count()}. PrevTerm {prevTerm}");
+
+            node.RequestAppendLogRPC(Id, CurrentTerm, GetOtherNodesLogList(node.Id), InternalCommitIndex, indexOfPersonalPrevLog, prevTerm);
         }
     }
 
@@ -134,7 +136,7 @@ public class Node : INode
             return [];
         }
 
-        return LogList.Skip(nodesNextIndex - 1).Take(logDifference).ToArray();
+        return LogList.Skip(nodesNextIndex ).Take(logDifference).ToArray();
     }
 
     private void SendVotes()
@@ -167,7 +169,7 @@ public class Node : INode
         CurrentVotesForTerm[termToVoteFor]++;
         if (CurrentState == NodeState.Candidate && termToVoteFor == CurrentTerm)
         {
-            if (CurrentVotesForTerm[termToVoteFor] >= Majority)
+            if (CurrentVotesForTerm[termToVoteFor] == Majority)
             {
                 InitiateLeadership();
             }
@@ -180,6 +182,8 @@ public class Node : INode
 
         if (nodeToRespondTo != null)
         {
+            System.Console.WriteLine($"Sending a response {response} to leader. Next Index: {NextIndex}. CurrentTerm: {CurrentTerm}. My log count is: {LogList.Count()}");
+
             await nodeToRespondTo.ResponseAppendLogRPC(response, Id, CurrentTerm, NextIndex);
         }
     }
@@ -196,12 +200,14 @@ public class Node : INode
 
     public async Task ResponseAppendLogRPC(bool ableToSync, int id, int term, int othersNextIndex)
     {
+        Console.WriteLine($"Recieved a response of {ableToSync}, id: {id}, term: {term}, nextIndex {othersNextIndex} \n");
         if (term < CurrentTerm)
         {
             return;
         }
         if (ableToSync)
         {
+            OtherNextIndexes[id] = othersNextIndex;
             int indexLogWasAddedToLast = othersNextIndex - 1;
             if (LogReplicated.ContainsKey(indexLogWasAddedToLast))
             {
@@ -211,11 +217,13 @@ public class Node : INode
                     LeaderCommitLog(indexLogWasAddedToLast);
                 }
             }
-            OtherNextIndexes[id] = othersNextIndex;
         }
         else
         {
-            OtherNextIndexes[id]--;
+            if(OtherNextIndexes[id] > 0)
+            {
+                OtherNextIndexes[id]--;
+            }
         }
         await Task.CompletedTask;
     }
@@ -357,10 +365,12 @@ public class Node : INode
     public void StopTimer()
     {
         InternalTimer?.Stop();
+        StartTime = DateTime.MinValue;
     }
 
     public void Start()
     {
         InternalTimer?.Start();
+        StartTime = DateTime.Now;
     }
 }
