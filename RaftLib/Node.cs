@@ -120,7 +120,7 @@ public class Node : INode
         {
             int indexOfPersonalPrevLog =  OtherNextIndexes[node.Id] == 0 ? 0 : OtherNextIndexes[node.Id] ;
             int prevTerm = indexOfPersonalPrevLog == 0 ? 0 : LogList.ElementAtOrDefault(indexOfPersonalPrevLog - 1)?.Term ?? 0;
-            System.Console.WriteLine($"Sending a request to {node.Id}. Commit Index: {InternalCommitIndex}. Index Of PerosnalPrevLog: {indexOfPersonalPrevLog}. Sending over a list of size {GetOtherNodesLogList(node.Id).Count()}. PrevTerm {prevTerm}");
+            //System.Console.WriteLine($"Sending a request to {node.Id}. Commit Index: {InternalCommitIndex}. Index Of PerosnalPrevLog: {indexOfPersonalPrevLog}. Sending over a list of size {GetOtherNodesLogList(node.Id).Count()}. PrevTerm {prevTerm}");
 
             node.RequestAppendLogRPC(Id, CurrentTerm, GetOtherNodesLogList(node.Id), InternalCommitIndex, indexOfPersonalPrevLog, prevTerm);
         }
@@ -182,7 +182,7 @@ public class Node : INode
 
         if (nodeToRespondTo != null)
         {
-            System.Console.WriteLine($"Sending a response {response} to leader. Next Index: {NextIndex}. CurrentTerm: {CurrentTerm}. My log count is: {LogList.Count()}");
+            //System.Console.WriteLine($"Sending a response {response} to leader. Next Index: {NextIndex}. CurrentTerm: {CurrentTerm}. My log count is: {LogList.Count()}");
 
             await nodeToRespondTo.ResponseAppendLogRPC(response, Id, CurrentTerm, NextIndex);
         }
@@ -200,7 +200,7 @@ public class Node : INode
 
     public async Task ResponseAppendLogRPC(bool ableToSync, int id, int term, int othersNextIndex)
     {
-        Console.WriteLine($"Recieved a response of {ableToSync}, id: {id}, term: {term}, nextIndex {othersNextIndex} \n");
+        //Console.WriteLine($"Recieved a response of {ableToSync}, id: {id}, term: {term}, nextIndex {othersNextIndex} \n");
         if (term < CurrentTerm)
         {
             return;
@@ -264,10 +264,14 @@ public class Node : INode
 
     private void LeaderCommitLog(int logIndexToCommit)
     {
-        InternalCommitIndex++;
-        var LogToAdd = LogList[logIndexToCommit];
-        InternalStateMachine[LogToAdd.Key] = LogToAdd.Value;
-        LogCommitedEvent?.Invoke((LogToAdd.Key, LogToAdd.Value));
+        //TODO: change this method a little bit lol
+        var logsToAdd = LogList.Skip(InternalCommitIndex ).Take(logIndexToCommit - InternalCommitIndex + 1) ;
+        foreach(var log in logsToAdd)
+        {
+            InternalStateMachine[log.Key] = log.Value;
+            LogCommitedEvent?.Invoke((log.Key, log.Value));
+        }
+        InternalCommitIndex = logIndexToCommit + 1;
     }
     public double GetRemainingTime()
     {
@@ -315,7 +319,7 @@ public class Node : INode
             }
             else
             {
-                var logsToCommit = LogList.Skip(InternalCommitIndex).Take(commitIndex - InternalCommitIndex);
+                var logsToCommit = LogList.Skip(InternalCommitIndex ).Take(commitIndex - InternalCommitIndex);
                 foreach (var log in logsToCommit)
                 {
                     InternalStateMachine[log.Key] = log.Value;

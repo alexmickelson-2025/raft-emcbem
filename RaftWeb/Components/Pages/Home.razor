@@ -64,6 +64,7 @@
                         <p>Current Node State: @node.InnerNode.CurrentState</p>
                         <p>Election Term: @node.InnerNode.CurrentTerm </p>
                         <p>Current Leader: @node.InnerNode.CurrentLeader</p>
+                        <p>Committ index: @node.InnerNode.InternalCommitIndex</p>
                     </div>
                     <button class="w-full" @onclick="() => {StopNode(node);}">@(node.IsStopped ? "Start" : "Stop")</button>
                 </div>
@@ -87,6 +88,15 @@
                         </div>
                     }
                 </div>
+
+                 <div class="bg-body-secondary my-3 p-1 rounded-3">
+                <strong>STATE</strong>
+                @foreach (var entry in node.InnerNode.InternalStateMachine)
+                {
+                    <div>@entry.Key: @entry.Value</div>
+                }
+                </div>
+
 
             </div>
         </div>
