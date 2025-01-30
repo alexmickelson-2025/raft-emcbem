@@ -1,0 +1,28 @@
+services:
+  node1:
+    image: mcr.microsoft.com/dotnet/sdk:8.0
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      - NODE_ID=1
+      - CLUSTER_SIZE=3
+    command: dotnet run --project RaftRestClient
+  node2:
+    image: mcr.microsoft.com/dotnet/sdk:8.0
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      - NODE_ID=2
+      - CLUSTER_SIZE=3
+    command: dotnet run --project RaftRestClient
+  node3:
+    image: mcr.microsoft.com/dotnet/sdk:8.0
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      - NODE_ID=3
+      - CLUSTER_SIZE=3
+    command: dotnet run --project RaftRestClient

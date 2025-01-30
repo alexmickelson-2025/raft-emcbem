@@ -109,7 +109,7 @@
 
 @code
 {
-    private static List<bool> ResponseList = new();
+    private static List<string> ResponseList = new();
 
     protected override void OnInitialized()
     {
@@ -202,10 +202,10 @@
 
     internal class SimulationClient : IClient
     {
-        public async Task ResponseClientRequestRPC(bool isSuccess)
+        public async Task ResponseClientRequestRPC(bool isSuccess, string message)
         {
             await Task.CompletedTask;
-            ResponseList.Add(isSuccess);
+            ResponseList.Add(message);
         }
     }
 }

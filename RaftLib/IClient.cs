@@ -1,5 +1,5 @@
 namespace RaftLib;
 
 public interface IClient{
-    public Task ResponseClientRequestRPC(bool isSuccess);
+    public Task ResponseClientRequestRPC(bool isSuccess, string message);
 }

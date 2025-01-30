@@ -13,7 +13,7 @@ public class SimulationNode : INode
         InnerNode = node;
     }
 
-    public async Task ResponseVoteRPC(bool result, int termToVoteFor)
+    public async Task ResponseVoteRPC(ResponseVoteDto responseVoteDto)
     {
         Thread.Sleep(NetworkDelay);
         if(IsStopped)
@@ -21,10 +21,10 @@ public class SimulationNode : INode
             await Task.CompletedTask;
             return;
         }
-        await InnerNode.ResponseVoteRPC(result, termToVoteFor);
+        await InnerNode.ResponseVoteRPC(responseVoteDto);
     }
 
-    public async Task RequestVoteRPC(int candidateId, int termToVoteFor, int commitIndex)
+    public async Task RequestVoteRPC(RequestVoteDto requestVoteDto)
     {
         Thread.Sleep(NetworkDelay);
         if(IsStopped)
@@ -32,10 +32,10 @@ public class SimulationNode : INode
             await Task.CompletedTask;
             return;
         }
-        await InnerNode.RequestVoteRPC(candidateId, termToVoteFor, commitIndex);
+        await InnerNode.RequestVoteRPC(requestVoteDto);
     }
 
-    public async Task ResponseAppendLogRPC(bool ableToSync, int id, int term, int indexOfAddedLog)
+    public async Task ResponseAppendLogRPC(ResponseAppendLogDto responseAppendLogDto)
     {
         Thread.Sleep(NetworkDelay);
         if(IsStopped)
@@ -43,10 +43,10 @@ public class SimulationNode : INode
             await Task.CompletedTask;
             return;
         }
-        await InnerNode.ResponseAppendLogRPC(ableToSync, id, term, indexOfAddedLog);
+        await InnerNode.ResponseAppendLogRPC(responseAppendLogDto);
     }
 
-    public async Task RequestAppendLogRPC(int leaderId, int term, Log[] entries, int commitIndex, int prevIndex, int prevTerm)
+    public async Task RequestAppendLogRPC(RequestAppendLogDto requestAppendLogDto)
     {
         Thread.Sleep(NetworkDelay);
         if(IsStopped)
@@ -54,6 +54,6 @@ public class SimulationNode : INode
             await Task.CompletedTask;
             return;
         }
-        await InnerNode.RequestAppendLogRPC(leaderId, term, entries, commitIndex, prevIndex, prevTerm);
+        await InnerNode.RequestAppendLogRPC(requestAppendLogDto);
     }
 }

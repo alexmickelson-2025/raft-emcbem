@@ -21,7 +21,7 @@ public class PausingTests
         Thread.Sleep(400);
     
         // Then
-        moqFollower.Received(1).RequestAppendLogRPC(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<Log[]>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>());
+        moqFollower.Received(1).RequestAppendLogRPC(Arg.Any<RequestAppendLogDto>());
     }
 
     [Fact]
@@ -34,14 +34,14 @@ public class PausingTests
          node.InitiateLeadership();
         node.StopTimer();
         Thread.Sleep(400);
-        moqFollower.Received(1).RequestAppendLogRPC(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<Log[]>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>());
+        moqFollower.Received(1).RequestAppendLogRPC(Arg.Any<RequestAppendLogDto>());
     
         // When
         node.Start();
         Thread.Sleep(415);
 
         // Then
-        moqFollower.Received(9).RequestAppendLogRPC(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<Log[]>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<int>());
+        moqFollower.Received(9).RequestAppendLogRPC(Arg.Any<RequestAppendLogDto>());
     }
 
     [Fact]

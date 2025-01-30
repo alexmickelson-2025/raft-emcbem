@@ -25,7 +25,7 @@ public class Node : INode
     public int MaxInterval { get; set; } = 301;
     public int HeartbeatInterval { get; set; } = 50;
     public int InternalCommitIndex { get; set; }
-    private Action<(string, string)>? LogCommitedEvent;
+    private Action<(string, string, int)>? LogCommitedEvent;
 
 
 
@@ -83,6 +83,7 @@ public class Node : INode
 
     public void InitiateLeadership()
     {
+        Console.WriteLine("I have become a leader! {0}", Id);
         InternalTimer?.Stop();
         InternalTimer?.Dispose();
 
@@ -122,7 +123,7 @@ public class Node : INode
             int prevTerm = indexOfPersonalPrevLog == 0 ? 0 : LogList.ElementAtOrDefault(indexOfPersonalPrevLog - 1)?.Term ?? 0;
             //System.Console.WriteLine($"Sending a request to {node.Id}. Commit Index: {InternalCommitIndex}. Index Of PerosnalPrevLog: {indexOfPersonalPrevLog}. Sending over a list of size {GetOtherNodesLogList(node.Id).Count()}. PrevTerm {prevTerm}");
 
-            node.RequestAppendLogRPC(Id, CurrentTerm, GetOtherNodesLogList(node.Id), InternalCommitIndex, indexOfPersonalPrevLog, prevTerm);
+            node.RequestAppendLogRPC(new (Id, CurrentTerm, GetOtherNodesLogList(node.Id), InternalCommitIndex, indexOfPersonalPrevLog, prevTerm));
         }
     }
 
@@ -143,36 +144,7 @@ public class Node : INode
     {
         foreach (var node in nodes)
         {
-            node.RequestVoteRPC(Id, CurrentTerm, InternalCommitIndex);
-        }
-    }
-
-    public async Task RequestVoteRPC(int candidateId, int termToVoteFor, int committIndex)
-    {
-        bool result = false;
-        if(InternalCommitIndex > committIndex)
-        {
-            result = false;
-        }
-        else if (!WhoDidIVoteFor.ContainsKey(termToVoteFor) && termToVoteFor > CurrentTerm)
-        {
-            WhoDidIVoteFor.Add(termToVoteFor, candidateId);
-            result = true;
-        }
-        await SendVote(candidateId, result, termToVoteFor);
-    }
-
-    public async Task ResponseVoteRPC(bool result, int termToVoteFor)
-    {
-        await Task.CompletedTask;
-        if (result == false) return;
-        CurrentVotesForTerm[termToVoteFor]++;
-        if (CurrentState == NodeState.Candidate && termToVoteFor == CurrentTerm)
-        {
-            if (CurrentVotesForTerm[termToVoteFor] == Majority)
-            {
-                InitiateLeadership();
-            }
+            node.RequestVoteRPC(new (Id, CurrentTerm, InternalCommitIndex));
         }
     }
 
@@ -184,7 +156,7 @@ public class Node : INode
         {
             //System.Console.WriteLine($"Sending a response {response} to leader. Next Index: {NextIndex}. CurrentTerm: {CurrentTerm}. My log count is: {LogList.Count()}");
 
-            await nodeToRespondTo.ResponseAppendLogRPC(response, Id, CurrentTerm, NextIndex);
+            await nodeToRespondTo.ResponseAppendLogRPC(new (response, Id, CurrentTerm, NextIndex));
         }
     }
 
@@ -194,38 +166,8 @@ public class Node : INode
 
         if (nodeToCastVoteTo != null)
         {
-            await nodeToCastVoteTo.ResponseVoteRPC(result, termToVoteFor);
+            await nodeToCastVoteTo.ResponseVoteRPC(new (result, termToVoteFor));
         }
-    }
-
-    public async Task ResponseAppendLogRPC(bool ableToSync, int id, int term, int othersNextIndex)
-    {
-        //Console.WriteLine($"Recieved a response of {ableToSync}, id: {id}, term: {term}, nextIndex {othersNextIndex} \n");
-        if (term < CurrentTerm)
-        {
-            return;
-        }
-        if (ableToSync)
-        {
-            OtherNextIndexes[id] = othersNextIndex;
-            int indexLogWasAddedToLast = othersNextIndex - 1;
-            if (LogReplicated.ContainsKey(indexLogWasAddedToLast))
-            {
-                LogReplicated[indexLogWasAddedToLast]++;
-                if (LogReplicated[indexLogWasAddedToLast] == Majority)
-                {
-                    LeaderCommitLog(indexLogWasAddedToLast);
-                }
-            }
-        }
-        else
-        {
-            if(OtherNextIndexes[id] > 0)
-            {
-                OtherNextIndexes[id]--;
-            }
-        }
-        await Task.CompletedTask;
     }
 
 
@@ -233,27 +175,27 @@ public class Node : INode
     {
         if(CurrentState != NodeState.Leader)
         {
-            clientRequesting.ResponseClientRequestRPC(false);
+            clientRequesting.ResponseClientRequestRPC(false, $"Node {Id} is not the leader");
             return;
         }
         LogReplicated.Add(NextIndex, 1);
+        RegisterForLogCommitEvent(clientRequesting, key, value, NextIndex);
         LogList.Add(new Log(CurrentTerm, key, value));
-        RegisterForLogCommitEvent(clientRequesting, key, value);
         if (Majority == 1)
         {
             LeaderCommitLog(LogList.Count() - 1);
         }
     }
 
-    private void RegisterForLogCommitEvent(IClient clientRequesting, string key, string value)
+    private void RegisterForLogCommitEvent(IClient clientRequesting, string key, string value, int indexWhenRegistered)
     {
         //Chat made this but I love it
         // Named event handler for easy unsubscription
-        void LogHandler((string key, string value) command)
+        void LogHandler((string key, string value, int index) command)
         {
-            if (command == (key, value))
+            if (command == (key, value, indexWhenRegistered))
             {
-                clientRequesting.ResponseClientRequestRPC(true); // Respond to client
+                clientRequesting.ResponseClientRequestRPC(true, $"Leader {Id} was able to get the command key: {key}, value: {value} committed"); // Respond to client
                 LogCommitedEvent -= LogHandler; // Unsubscribe to prevent further calls
             }
         }
@@ -265,11 +207,12 @@ public class Node : INode
     private void LeaderCommitLog(int logIndexToCommit)
     {
         //TODO: change this method a little bit lol
-        var logsToAdd = LogList.Skip(InternalCommitIndex ).Take(logIndexToCommit - InternalCommitIndex + 1) ;
-        foreach(var log in logsToAdd)
+        var logsToAdd = LogList.Skip(InternalCommitIndex ).Take(logIndexToCommit - InternalCommitIndex + 1).ToList();
+        for (int i = 0; i < logsToAdd.Count(); i++)
         {
+            var log = logsToAdd[i];
             InternalStateMachine[log.Key] = log.Value;
-            LogCommitedEvent?.Invoke((log.Key, log.Value));
+            LogCommitedEvent?.Invoke((log.Key, log.Value, InternalCommitIndex + i ));
         }
         InternalCommitIndex = logIndexToCommit + 1;
     }
@@ -278,35 +221,6 @@ public class Node : INode
         double elapsedTime = (DateTime.Now - StartTime).TotalMilliseconds;
         double remainingTime = TimerInterval - elapsedTime;
         return Math.Max(remainingTime, 0);
-    }
-
-    public async Task RequestAppendLogRPC(int leaderId, int term, Log[] entries, int commitIndex, int prevIndex, int prevTerm)
-    {
-        if (term >= CurrentTerm)
-        {
-            if (term > CurrentTerm)
-            {
-                CurrentTerm = term;
-                CurrentLeader = leaderId;
-                CurrentState = NodeState.Follower;
-            }
-
-            if (term == CurrentTerm && NodeState.Candidate == CurrentState)
-            {
-                CurrentState = NodeState.Follower;
-                CurrentLeader = leaderId;
-            }
-
-            if (NodeState.Leader != CurrentState)
-            {
-                StartNewCanidacyTimer();
-            }
-        }
-        var originalRepsonse = DetermineResponse(term, prevIndex, prevTerm);
-        AddOrRemoveLogs(leaderId, entries, prevIndex, prevTerm);
-        CommitNeededLogs(commitIndex);
-        var response = DetermineResponse(term, prevIndex, prevTerm);
-        await SendAppendResponse(leaderId, response || originalRepsonse);
     }
 
     private void CommitNeededLogs(int commitIndex)
@@ -377,4 +291,90 @@ public class Node : INode
         InternalTimer?.Start();
         StartTime = DateTime.Now;
     }
+
+    public async Task ResponseVoteRPC(ResponseVoteDto responseVoteDto)
+    {
+        await Task.CompletedTask;
+        if (responseVoteDto.result == false) return;
+        CurrentVotesForTerm[responseVoteDto.termToVoteFor]++;
+        if (CurrentState == NodeState.Candidate && responseVoteDto.termToVoteFor == CurrentTerm)
+        {
+            if (CurrentVotesForTerm[responseVoteDto.termToVoteFor] == Majority)
+            {
+                InitiateLeadership();
+            }
+        }
+    }
+
+    public async Task RequestVoteRPC(RequestVoteDto requestVoteDto)
+    {
+        bool result = false;
+        if(InternalCommitIndex > requestVoteDto.commitIndex)
+        {
+            result = false;
+        }
+        else if (!WhoDidIVoteFor.ContainsKey(requestVoteDto.termToVoteFor) && requestVoteDto.termToVoteFor > CurrentTerm)
+        {
+            WhoDidIVoteFor.Add(requestVoteDto.termToVoteFor, requestVoteDto.candidateId);
+            result = true;
+        }
+        await SendVote(requestVoteDto.candidateId, result, requestVoteDto.termToVoteFor);
+    }
+
+    public async Task ResponseAppendLogRPC(ResponseAppendLogDto responseAppendLogDto)
+    {
+        if (responseAppendLogDto.term < CurrentTerm)
+        {
+            return;
+        }
+        if (responseAppendLogDto.ableToSync)
+        {
+            OtherNextIndexes[responseAppendLogDto.id] = responseAppendLogDto.indexOfAddedLog;
+            int indexLogWasAddedToLast = responseAppendLogDto.indexOfAddedLog - 1;
+            if (LogReplicated.ContainsKey(indexLogWasAddedToLast))
+            {
+                LogReplicated[indexLogWasAddedToLast]++;
+                if (LogReplicated[indexLogWasAddedToLast] == Majority)
+                {
+                    LeaderCommitLog(indexLogWasAddedToLast);
+                }
+            }
+        }
+        else
+        {
+            if(OtherNextIndexes[responseAppendLogDto.id] > 0)
+            {
+                OtherNextIndexes[responseAppendLogDto.id]--;
+            }
+        }
+        await Task.CompletedTask;
+    }
+
+    public async Task RequestAppendLogRPC(RequestAppendLogDto requestAppendLogDto)
+    {
+        if (requestAppendLogDto.term >= CurrentTerm)
+        {
+            if (requestAppendLogDto.term > CurrentTerm)
+            {
+                CurrentTerm = requestAppendLogDto.term;
+                CurrentLeader = requestAppendLogDto.leaderId;
+                CurrentState = NodeState.Follower;
+            }
+
+            if (requestAppendLogDto.term == CurrentTerm && NodeState.Candidate == CurrentState)
+            {
+                CurrentState = NodeState.Follower;
+                CurrentLeader = requestAppendLogDto.leaderId;
+            }
+
+            if (NodeState.Leader != CurrentState)
+            {
+                StartNewCanidacyTimer();
+            }
+        }
+        var originalRepsonse = DetermineResponse(requestAppendLogDto.term, requestAppendLogDto.prevIndex, requestAppendLogDto.prevTerm);
+        AddOrRemoveLogs(requestAppendLogDto.leaderId, requestAppendLogDto.entries, requestAppendLogDto.prevIndex, requestAppendLogDto.prevTerm);
+        CommitNeededLogs(requestAppendLogDto.commitIndex);
+        var response = DetermineResponse(requestAppendLogDto.term, requestAppendLogDto.prevIndex, requestAppendLogDto.prevTerm);
+        await SendAppendResponse(requestAppendLogDto.leaderId, response || originalRepsonse); }
 }
