@@ -26,3 +26,13 @@ services:
       - NODE_ID=3
       - CLUSTER_SIZE=3
     command: dotnet run --project RaftRestClient
+  client:
+    image: mcr.microsoft.com/dotnet/sdk:8.0
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      - NODE_URLS=http://node1:8080;http://node2:8080;http://node3:8080
+    command: dotnet run --project RaftClient
+    ports:
+      - 8080:8080

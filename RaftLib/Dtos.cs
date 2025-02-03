@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace RaftLib;
 
 public record ResponseVoteDto
@@ -59,4 +61,23 @@ public record RequestAppendLogDto
         this.prevIndex = prevIndex;
         this.prevTerm = prevTerm;
     }
+}
+
+public record NodeData
+{
+    public int Id { get; set; }
+    public NodeState State { get; set; }
+    public double TimerPercentage { get; set; }
+    public int Term { get; set; }
+    public int CurrentLeader { get; set; }
+    public int CommitIndex { get; set; }
+    public List<Log> Logs { get; set; } = new();
+    public Dictionary<string, string> StateMachine { get; set; } = new();
+}
+
+public class ClientRequestDto 
+{
+    public string Url { get; set; } = "";
+    public string  Key { get; set; } = "";
+    public string Value { get; set; } = "";
 }

@@ -28,6 +28,21 @@ n.HeartbeatInterval = 2000;
 
 n.Start();
 
+app.MapGet("/nodeData", () =>
+{
+    System.Console.WriteLine("Someone wants my data");
+  return new NodeData(){
+    Id = n.Id,
+    State = n.CurrentState,
+    TimerPercentage = n.GetRemainingTimePercentage(),
+    Term = n.CurrentTerm,
+    CurrentLeader = n.CurrentLeader,
+    CommitIndex = n.InternalCommitIndex,
+    Logs = n.LogList,
+    StateMachine = n.InternalStateMachine
+  };
+});
+
 app.MapPost("/request/appendentries", async ([FromBody] RequestAppendLogDto requestDto) =>
 {
     System.Console.WriteLine("Recieving an append entries");
@@ -52,9 +67,11 @@ app.MapPost("/response/vote", async ([FromBody] ResponseVoteDto requestDto) =>
     await n.ResponseVoteRPC(requestDto);
 });
 
+app.MapPost("/request/clientrequest", async ([FromBody] ClientRequestDto request) => 
+{
+    var client = new ClusterClient(request.Url);
+    n.ReceiveClientRequest(client, request.Key, request.Value);
+});
+
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

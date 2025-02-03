@@ -1,0 +1,106 @@
+﻿@page "/"
+@using RaftLib
+@inject IConfiguration config
+@inject ResponseLog logs
+@rendermode InteractiveServer
+
+<PageTitle>Home</PageTitle>
+
+<h1>Hello, world!</h1>
+
+Welcome to your new app.
+
+@foreach (var log in logs.Responses.Select(x => x)) //copying logs so that if the logs get updated during a display, it doesn't break
+{
+    <p>
+        @log
+    </p>
+} 
+<div class="row">
+
+    @foreach (var node in nodes)
+    {
+        <div class="p-3 col-4">
+            <div class="border p-3 rounded-3">
+                <div class="d-flex flex-row gap-5 pb-3">
+
+                    <div class="d-flex flex-column">
+                        <p>Id: @node.Data.Id </p>
+                        <p>Current Node State: @node.Data.State</p>
+                        <p>Election Term: @node.Data.Term </p>
+                        <p>Current Leader: @node.Data.CurrentLeader</p>
+                        <p>Committ index: @node.Data.CommitIndex</p>
+                    </div>
+                    @* <button class="w-full" @onclick="() => {StopNode(node);}">@(node.IsStopped ? "Start" : "Stop")</button> *@
+                </div>
+
+                <div>
+                    <div class="progress" role="progressbar" aria-label="Basic example"
+                        aria-valuenow=@(node.Data.TimerPercentage) aria-valuemin="0" aria-valuemax="1">
+                        <div class="progress-bar bg-dark-subtle" style="width: @(node.Data.TimerPercentage * 100)%;"></div>
+                    </div>
+                </div>
+
+                <div class="bg-body-secondary my-3 p-1 rounded-3">
+                    <strong>LOG</strong>
+                    @foreach (var log in node.Data.Logs.Select((x, i) => (x, i)))
+                    {
+                        <div>
+                            <p class=@(log.i < node.Data.CommitIndex ? "text-success" : "")>
+                                @log.i: @log.x.Term - @log.x.Key: @log.x.Value
+                            </p>
+                        </div>
+                    }
+                </div>
+
+                <div class="bg-body-secondary my-3 p-1 rounded-3">
+                    <strong>STATE</strong>
+                    @foreach (var entry in node.Data.StateMachine)
+                    {
+                        <div>@entry.Key: @entry.Value</div>
+                    }
+                </div>
+
+
+            </div>
+        </div>
+    }
+</div>
+
+@code
+{
+    List<ClusterNode> nodes = new();
+    Timer timer;
+    protected override void OnInitialized()
+    {
+        logs.ResponsesUpdated += () =>
+        {
+            InvokeAsync(() =>
+            {
+                StateHasChanged();
+            });
+        };
+        string nodeUrlsRaw = config.GetValue<string>("NODE_URLS") ?? throw new Exception();
+        nodes = nodeUrlsRaw.Split(";").Select(x => new ClusterNode(x)).ToList();
+        StartStateHasChanged();
+    }
+
+
+    void StartStateHasChanged()
+    { 
+        timer = new Timer(_ =>
+        {
+            InvokeAsync(async () =>
+            {
+                await RefetchEverything();
+                StateHasChanged();
+            });
+        }, null, 0, 200);
+    }
+
+    private async Task RefetchEverything()
+    {
+        var tasks = nodes.Select(x => Task.Run(() => x.Refetch())).ToList();
+        await Task.WhenAll(tasks);
+    }
+}

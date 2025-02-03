@@ -89,12 +89,12 @@
                     }
                 </div>
 
-                 <div class="bg-body-secondary my-3 p-1 rounded-3">
-                <strong>STATE</strong>
-                @foreach (var entry in node.InnerNode.InternalStateMachine)
-                {
-                    <div>@entry.Key: @entry.Value</div>
-                }
+                <div class="bg-body-secondary my-3 p-1 rounded-3">
+                    <strong>STATE</strong>
+                    @foreach (var entry in node.InnerNode.InternalStateMachine)
+                    {
+                        <div>@entry.Key: @entry.Value</div>
+                    }
                 </div>
 
 
@@ -155,8 +155,8 @@
         timer = new Timer(_ =>
         {
             InvokeAsync(() =>
-    {
-    StateHasChanged();
+            {
+              StateHasChanged();
             });
         }, null, 0, 200);
     }

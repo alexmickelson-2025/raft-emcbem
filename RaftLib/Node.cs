@@ -223,6 +223,11 @@ public class Node : INode
         return Math.Max(remainingTime, 0);
     }
 
+    public double GetRemainingTimePercentage()
+    {
+        return GetRemainingTime()/TimerInterval;
+    }
+
     private void CommitNeededLogs(int commitIndex)
     {
         if (LogList.ElementAtOrDefault(commitIndex - 1) != null)

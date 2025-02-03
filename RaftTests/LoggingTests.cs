@@ -12,7 +12,7 @@ public class LoggingTests
 {
     public class TestClient : IClient
     {
-        public async Task ResponseClientRequestRPC(bool isSuccess)
+        public async Task ResponseClientRequestRPC(bool isSuccess, string message)
         {
             await Task.CompletedTask;
         }
@@ -271,11 +271,11 @@ public class LoggingTests
         leaderNode.InitiateLeadership();
 
         // When
-        moqClient.DidNotReceive().ResponseClientRequestRPC(true);
+        moqClient.DidNotReceive().ResponseClientRequestRPC(true, Arg.Any<string>());
         leaderNode.ReceiveClientRequest(moqClient, "hi", "there");
     
         // Then
-        moqClient.Received().ResponseClientRequestRPC(true);
+        moqClient.Received().ResponseClientRequestRPC(true, Arg.Any<string>());
     }
 
     // Testing #12.b
@@ -287,19 +287,19 @@ public class LoggingTests
         var leaderNode = new Node(1, TestNode.LargeCluster);
         leaderNode.InitiateLeadership();
         leaderNode.ReceiveClientRequest(moqClient, "blah", "blah");
-        await moqClient.DidNotReceive().ResponseClientRequestRPC(Arg.Any<bool>());
+        await moqClient.DidNotReceive().ResponseClientRequestRPC(Arg.Any<bool>(), Arg.Any<string>());
         leaderNode.Majority.Should().Be(3);
 
         // When
         await leaderNode.ResponseAppendLogRPC(new (true, 2, 0, 1));
-        await moqClient.DidNotReceive().ResponseClientRequestRPC(Arg.Any<bool>());
+        await moqClient.DidNotReceive().ResponseClientRequestRPC(Arg.Any<bool>(), Arg.Any<string>());
     
         await leaderNode.ResponseAppendLogRPC(new (true, 3, 0, 1));
 
         // Then
         leaderNode.LogReplicated[0].Should().Be(3);
         leaderNode.InternalStateMachine["blah"].Should().Be("blah");
-        await moqClient.Received().ResponseClientRequestRPC(true);
+        await moqClient.Received().ResponseClientRequestRPC(true, Arg.Any<string>());
     }
 
     // Testing #13
@@ -508,7 +508,7 @@ public class LoggingTests
     
         // Then
         leaderNode.InternalCommitIndex.Should().Be(0);
-        moqClient.DidNotReceive().ResponseClientRequestRPC(Arg.Any<bool>());
+        moqClient.DidNotReceive().ResponseClientRequestRPC(Arg.Any<bool>(), Arg.Any<string>());
     }
 
     // Testing #19
@@ -565,7 +565,7 @@ public class LoggingTests
         node.ReceiveClientRequest(moqClient, "Give", "me");
     
         // Then
-        moqClient.Received().ResponseClientRequestRPC(false);
+        moqClient.Received().ResponseClientRequestRPC(false, Arg.Any<string>());
     }
 
     // Testing Leader Sends Correct Logs to followers
