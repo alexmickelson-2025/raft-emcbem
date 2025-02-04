@@ -18,4 +18,15 @@ public class ClusterNode
         System.Console.WriteLine(Data);
     }
 
+    public void SendCommand(string key, string value)
+    {
+        var client = new HttpClient();
+
+        var clientRequest = new ClientRequestDto();
+        clientRequest.Key = key;
+        clientRequest.Value = value;
+        clientRequest.Url = "http://client:8080";
+        client.PostAsJsonAsync(Url + "/request/clientrequest", clientRequest);
+    }
+
 }

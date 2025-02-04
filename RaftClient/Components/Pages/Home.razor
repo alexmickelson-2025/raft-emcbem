@@ -10,12 +10,32 @@
 
 Welcome to your new app.
 
-@foreach (var log in logs.Responses.Select(x => x)) //copying logs so that if the logs get updated during a display, it doesn't break
-{
-    <p>
-        @log
-    </p>
-} 
+
+<div class="col">
+    <div class="border p-3 rounded-3">
+        <label>
+            Key <input class="form-control" @bind=userInputKey />
+        </label>
+        <label>
+            Value <input class="form-control" @bind=userInputValue />
+        </label>
+        <hr>
+        @foreach (var node in nodes)
+        {
+            <button class="btn btn-outline-primary mx-1" @onclick="() => SendCommand(node)">Send to Node @node.Data.Id</button>
+        }
+        <br>
+        <div>
+            @foreach (var result in logs.Responses)
+            {
+                <p>
+                    @result
+                </p>
+            }
+        </div>
+    </div>
+</div>
+
 <div class="row">
 
     @foreach (var node in nodes)
@@ -70,7 +90,10 @@ Welcome to your new app.
 @code
 {
     List<ClusterNode> nodes = new();
-    Timer timer;
+    Timer? timer;
+
+    private string userInputKey = "";
+    private string userInputValue = "";
     protected override void OnInitialized()
     {
         logs.ResponsesUpdated += () =>
@@ -102,5 +125,10 @@ Welcome to your new app.
     {
         var tasks = nodes.Select(x => Task.Run(() => x.Refetch())).ToList();
         await Task.WhenAll(tasks);
+    }
+
+    private void SendCommand(ClusterNode node)
+    {
+        node.SendCommand(userInputKey, userInputValue);
     }
 }
