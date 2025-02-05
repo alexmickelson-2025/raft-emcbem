@@ -83,7 +83,6 @@ public class Node : INode
 
     public void InitiateLeadership()
     {
-        Console.WriteLine("I have become a leader! {0}", Id);
         InternalTimer?.Stop();
         InternalTimer?.Dispose();
 

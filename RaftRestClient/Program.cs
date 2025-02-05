@@ -30,7 +30,6 @@ n.Start();
 
 app.MapGet("/nodeData", () =>
 {
-    System.Console.WriteLine("Someone wants my data");
   return new NodeData(){
     Id = n.Id,
     State = n.CurrentState,
@@ -45,25 +44,25 @@ app.MapGet("/nodeData", () =>
 
 app.MapPost("/request/appendentries", async ([FromBody] RequestAppendLogDto requestDto) =>
 {
-    System.Console.WriteLine("Recieving an append entries");
+    // System.Console.WriteLine("Recieving an append entries");
     await n.RequestAppendLogRPC(requestDto);
 });
 
 app.MapPost("/request/vote", async ([FromBody] RequestVoteDto requestDto) =>
 {
-    System.Console.WriteLine("Recieving a vote");
+    // System.Console.WriteLine("Recieving a vote");
     await n.RequestVoteRPC(requestDto);
 });
 
 app.MapPost("/response/appendentries", async ([FromBody] ResponseAppendLogDto requestDto) =>
 {
-    System.Console.WriteLine("responding to an append entries");
+    // System.Console.WriteLine("responding to an append entries");
     await n.ResponseAppendLogRPC(requestDto);
 });
 
 app.MapPost("/response/vote", async ([FromBody] ResponseVoteDto requestDto) =>
 {
-    System.Console.WriteLine("responding to a vote");
+    // System.Console.WriteLine("responding to a vote");
     await n.ResponseVoteRPC(requestDto);
 });
 
