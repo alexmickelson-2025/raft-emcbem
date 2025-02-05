@@ -35,4 +35,4 @@ services:
       - NODE_URLS=http://node1:8080;http://node2:8080;http://node3:8080
     command: dotnet run --project RaftClient
     ports:
-      - 8080:8080
+      - 6294:8080
