@@ -11,8 +11,15 @@ public class ClusterNode
 
     public async Task Refetch()
     {
-        var client = new HttpClient();
-        Data = (await client.GetFromJsonAsync<NodeData>(this.Url + "/nodeData")) ?? throw new Exception();
+        try{
+
+            var client = new HttpClient();
+            Data = (await client.GetFromJsonAsync<NodeData>(this.Url + "/nodeData")) ?? throw new Exception();
+        }
+        catch
+        {
+
+        }
     }
 
     public void SendCommand(string key, string value)
